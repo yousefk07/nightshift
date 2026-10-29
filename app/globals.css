@@ -55,3 +55,8 @@ code, pre, .mono { font-family: var(--font-mono), "JetBrains Mono", ui-monospace
 @keyframes ns-steam { 0% { opacity: 0; transform: translateY(0); } 40% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-16px); } }
 @keyframes ns-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes ns-toast { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the cheer: a hop with a little squash on landing */
+@keyframes ns-cheer { 0%, 100% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-22px) scale(0.94, 1.06); } 55% { transform: translateY(0) scale(1.08, 0.9); } 70% { transform: translateY(-6px) scale(1, 1); } }
+@keyframes ns-confetti { 0% { transform: translate3d(0, -40px, 0) rotate(0); opacity: 0; } 8% { opacity: 1; } 100% { transform: translate3d(var(--dx, 0), 105vh, 0) rotate(var(--spin, 540deg)); opacity: 1; } }
+@keyframes ns-pop { 0% { transform: scale(0.6); opacity: 0; } 70% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes ns-twinkle { 0%, 100% { opacity: 0; transform: scale(0.4); } 50% { opacity: 1; transform: scale(1); } }

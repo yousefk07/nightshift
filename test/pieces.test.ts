@@ -74,6 +74,37 @@ describe("billing", () => {
     expect(verifyWebhook(body, `t=${t - 600},v1=${createHmac("sha256", secret).update(`${t - 600}.${body}`).digest("hex")}`, secret)).toBe(false);
   });
 
+  it("a purchase shows up without the webhook, and cancel / switch go through Stripe", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_x";
+    const { store, ws } = memStore();
+    ws.stripe_customer_id = "cus_1";
+    const sub = (over: Record<string, unknown> = {}) => ({
+      id: "sub_1", status: "active", cancel_at_period_end: false, metadata: {}, current_period_end: 1_800_000_000,
+      items: { data: [{ id: "si_1", price: { lookup_key: "nightshift_solo_month", recurring: { interval: "month" } }, quantity: 1 }] }, ...over,
+    });
+    const calls: { url: string; body: string }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: String(init?.body ?? "") });
+      const j = url.includes("/subscriptions?customer=") ? { data: [sub()] }
+        : url.includes("/prices?") ? { data: [{ id: "price_studio_year" }] }
+        : url.endsWith("/subscriptions/sub_1") && init?.method === "POST" ? sub(String(init.body).includes("cancel_at_period_end=true") ? { cancel_at_period_end: true } : { items: { data: [{ id: "si_1", price: { lookup_key: "nightshift_studio_year", recurring: { interval: "year" } }, quantity: 1 }] } })
+        : sub();
+      return new Response(JSON.stringify(j), { status: 200 });
+    });
+    const { syncSubscription, setCancel, changePlan } = await import("../lib/billing");
+
+    expect(await syncSubscription(store, ws)).toMatchObject({ status: "active", cancel_at_period_end: false });
+    expect(await store.workspace(ws.id)).toMatchObject({ plan: "solo", plan_interval: "month", stripe_subscription_id: "sub_1" });
+
+    expect(await setCancel(store, await store.workspace(ws.id), true)).toMatchObject({ cancel_at_period_end: true });
+    expect(calls.at(-1)!.body).toContain("cancel_at_period_end=true");
+    expect((await store.workspace(ws.id)).plan).toBe("solo"); // still on Solo until the period ends
+
+    await changePlan(store, await store.workspace(ws.id), "studio", "year");
+    expect(decodeURIComponent(calls.at(-1)!.body)).toContain("items[0][price]=price_studio_year");
+    expect(await store.workspace(ws.id)).toMatchObject({ plan: "studio", plan_interval: "year" });
+  });
+
   it("plan limits follow the pricing table, with extra seats", () => {
     expect(limits({ plan: "solo", extra_seats: 0 })).toMatchObject({ bots: 3, seats: 1, room: false });
     expect(limits({ plan: "trial", extra_seats: 0 })).toMatchObject({ bots: 10, seats: 2, researchHours: 100, room: true });

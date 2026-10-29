@@ -77,7 +77,7 @@ export async function billingSummary(ws: Workspace) {
     stripe<{ data: any[] }>(`/customers/${ws.stripe_customer_id}/payment_methods?type=card&limit=1`),
   ]);
   return {
-    invoices: inv.data.map((i) => ({ date: new Date(i.created * 1000).toISOString().slice(0, 10), description: i.lines?.data?.[0]?.description ?? "Nightshift", amount: i.total / 100, currency: i.currency.toUpperCase(), status: i.status, pdf: i.invoice_pdf })),
+    invoices: inv.data.map((i) => ({ date: new Date(i.created * 1000).toISOString(), description: i.lines?.data?.[0]?.description ?? "Nightshift", amount: i.total / 100, currency: i.currency.toUpperCase(), status: i.status, pdf: i.invoice_pdf })),
     card: pm.data[0] ? { brand: pm.data[0].card.brand, last4: pm.data[0].card.last4, exp: `${String(pm.data[0].card.exp_month).padStart(2, "0")}/${String(pm.data[0].card.exp_year).slice(-2)}` } : null,
   };
 }
@@ -109,4 +109,44 @@ export async function applySubscription(store: Store, sub: any) {
     current_period_end: (sub.current_period_end ?? planItem?.current_period_end) ? new Date((sub.current_period_end ?? planItem.current_period_end) * 1000).toISOString() : null,
   });
   return wsId as string;
+}
+
+// The live subscription straight from Stripe, applied to the workspace on the way. The app is right even when a
+// webhook never arrives (none set up, a missed delivery): the billing page and the checkout return both call it.
+export async function syncSubscription(store: Store, ws: Workspace) {
+  if (!ws.stripe_customer_id) return null;
+  const r = await stripe<{ data: any[] }>(`/subscriptions?customer=${ws.stripe_customer_id}&status=all&limit=5`);
+  const sub = r.data.find((s) => ["active", "trialing", "past_due"].includes(s.status)) ?? r.data[0];
+  if (!sub) return null;
+  sub.metadata = { ...sub.metadata, workspace_id: sub.metadata?.workspace_id ?? ws.id };
+  await applySubscription(store, sub);
+  return subView(sub);
+}
+
+const subView = (sub: any) => {
+  const end = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
+  return { id: sub.id as string, status: sub.status as string, cancel_at_period_end: !!sub.cancel_at_period_end, period_end: end ? new Date(end * 1000).toISOString() : null };
+};
+
+// Cancel at the end of the period (the bots work until then), or take that back.
+export async function setCancel(store: Store, ws: Workspace, cancel: boolean) {
+  if (!ws.stripe_subscription_id) throw Object.assign(new Error("There's no subscription to change."), { status: 400 });
+  const sub = await stripe(`/subscriptions/${ws.stripe_subscription_id}`, { cancel_at_period_end: cancel });
+  await applySubscription(store, { ...sub, metadata: { ...sub.metadata, workspace_id: ws.id } });
+  return subView(sub);
+}
+
+// Switch plan or interval on the running subscription, prorated; extra seats follow the interval.
+export async function changePlan(store: Store, ws: Workspace, plan: PaidPlan, interval: "month" | "year") {
+  if (!ws.stripe_subscription_id) throw Object.assign(new Error("There's no subscription to change."), { status: 400 });
+  const sub = await stripe(`/subscriptions/${ws.stripe_subscription_id}`);
+  const items: { id: string; price: string }[] = [];
+  for (const i of sub.items.data as any[]) {
+    const lk: string = i.price?.lookup_key ?? "";
+    if (/^nightshift_(solo|studio|team)_/.test(lk)) items.push({ id: i.id, price: await priceId(`nightshift_${plan}_${interval}`) });
+    else if (/^nightshift_seat_/.test(lk)) items.push({ id: i.id, price: await priceId(`nightshift_seat_${interval}`) });
+  }
+  const updated = await stripe(`/subscriptions/${sub.id}`, { items, proration_behavior: "create_prorations", cancel_at_period_end: false, metadata: { workspace_id: ws.id, plan } });
+  await applySubscription(store, { ...updated, metadata: { ...updated.metadata, workspace_id: ws.id, plan } });
+  return subView(updated);
 }
