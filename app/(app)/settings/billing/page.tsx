@@ -8,7 +8,7 @@ import { api, useApi } from "@/lib/client";
 
 // S1 Plan & billing.
 interface Billing {
-  plan: { id: string; name: string; interval: "month" | "year" | null; active: boolean; renews: string | null; trial_ends_at: string | null };
+  plan: { staff?: boolean; id: string; name: string; interval: "month" | "year" | null; active: boolean; renews: string | null; trial_ends_at: string | null };
   prices: Record<string, { month: number; year: number } | number>;
   meters: { research_hours: { used: number; of: number; resets: string | null }; seats: { used: number; of: number }; inboxes: { used: number; of: number } };
   billing_email: string | null;
@@ -43,7 +43,7 @@ export default function BillingPage() {
       setBusy(false);
     }
   };
-  const paid = d.plan.id !== "trial" && d.plan.id !== "canceled";
+  const paid = !d.plan.staff && d.plan.id !== "trial" && d.plan.id !== "canceled";
   const yearlySaving = paid && d.plan.interval === "month" ? price(d.plan.id, "month") * 12 - price(d.plan.id, "year") : 0;
 
   return (
@@ -54,7 +54,7 @@ export default function BillingPage() {
           <div style={{ flex: 1, minWidth: 240 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ fontSize: 22, fontWeight: 700 }}>{d.plan.name}</span>{paid && <Pill tone="grey">{d.plan.interval === "year" ? "Yearly" : "Monthly"}</Pill>}{!d.plan.active && <Pill tone="red">Ended</Pill>}</div>
             <div style={{ fontSize: 14, color: "#5d5148", marginTop: 4 }}>
-              {paid ? `$${price(d.plan.id, d.plan.interval ?? "month")}/${d.plan.interval === "year" ? "year" : "month"} · renews ${fmtDate(d.plan.renews)}` : d.plan.trial_ends_at ? `Free Studio trial ${new Date(d.plan.trial_ends_at) > new Date() ? `until ${fmtDate(d.plan.trial_ends_at)}` : "has ended"}. No card on file.` : "No active plan."}
+              {d.plan.staff ? "Nightshift staff account: everything on, no trial, no billing." : paid ? `$${price(d.plan.id, d.plan.interval ?? "month")}/${d.plan.interval === "year" ? "year" : "month"} · renews ${fmtDate(d.plan.renews)}` : d.plan.trial_ends_at ? `Free Studio trial ${new Date(d.plan.trial_ends_at) > new Date() ? `until ${fmtDate(d.plan.trial_ends_at)}` : "has ended"}. No card on file.` : "No active plan."}
             </div>
           </div>
           {yearlySaving > 0 && <Button kind="outline" disabled={busy} onClick={() => go("/api/billing/portal")}>Switch to yearly, save ${yearlySaving}</Button>}
@@ -68,7 +68,7 @@ export default function BillingPage() {
         <Meter label="Inboxes" used={d.meters.inboxes.used} of={d.meters.inboxes.of} foot={d.meters.inboxes.of - d.meters.inboxes.used > 0 ? `${d.meters.inboxes.of - d.meters.inboxes.used} more included` : undefined} />
       </div>
 
-      {!paid && (
+      {!paid && !d.plan.staff && (
         <Section title="Pick a plan">
           <div style={{ padding: "14px 18px 0", display: "flex", gap: 6 }}>
             {(["month", "year"] as const).map((iv) => <button key={iv} onClick={() => setPeriod(iv)} aria-pressed={period === iv} style={{ padding: "7px 14px", borderRadius: 20, fontSize: 13, border: "1px solid #cdbfac", background: period === iv ? "#2b2320" : "transparent", color: period === iv ? "#fbf3e6" : "#2b2320" }}>{iv === "month" ? "Monthly" : "Yearly · 2 months free"}</button>)}

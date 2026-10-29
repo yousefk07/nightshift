@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { sha256 } from "./crypto";
+import { isStaff } from "./staff";
 import { defaultBots } from "./engine/flows";
 import { admin, supabaseStore } from "./store-supabase";
 import type { Role, Workspace } from "./types";
@@ -99,7 +100,8 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
   }
 
   const id = firstWorkspaceId(userId);
-  const { data: ws, error } = await db.from("workspaces").insert({ id, billing_email: email }).select().single();
+  const staff = isStaff(email); // Nightshift's own people: Team plan, no trial, no billing
+  const { data: ws, error } = await db.from("workspaces").insert({ id, billing_email: email, ...(staff ? { plan: "team", name: "Nightshift staff" } : {}) }).select().single();
   if (error?.code === "23505") {
     // another request is setting this same workspace up right now: wait for it, then use it
     for (let i = 0; i < 20; i++) {

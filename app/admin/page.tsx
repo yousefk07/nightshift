@@ -12,7 +12,7 @@ import { ago, money, useApi } from "@/lib/client";
 type W = {
   id: string; name: string; industry: string; plan: string; plan_interval: string | null; trial_ends_at: string; billing_email: string | null;
   onboarded_at: string | null; deleted_at: string | null; created_at: string; owner: string | null; members: number; bots: number; bots_on: number;
-  runs_7d: number; failed_7d: number; spend_30d: number; connections: string[]; waiting: number; mrr: number; last_run_at: string | null;
+  staff: boolean; runs_7d: number; failed_7d: number; spend_30d: number; connections: string[]; waiting: number; mrr: number; last_run_at: string | null;
 };
 type U = { id: string; email: string; provider: string; created_at: string; last_sign_in_at: string | null; workspaces: { id: string; role: string; name: string }[] };
 type Run = { id: string; workspace_id: string; workspace: string; status: string; trigger: string; model: string | null; cost_usd: number; error: string | null; created_at: string };
@@ -82,7 +82,7 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "24px 16px 60px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
             <Stat label="Monthly revenue" value={usd(t.mrr, 0)} sub={`${t.paid} paying`} tone="good" />
-            <Stat label="Workspaces" value={t.workspaces} sub={`${t.trials} on trial · ${t.expired_trials} trial over · ${t.deleted} deleted`} />
+            <Stat label="Workspaces" value={t.workspaces} sub={`${t.trials} on trial · ${t.expired_trials} trial over · ${t.deleted} deleted · ${t.staff} staff`} />
             <Stat label="Users" value={t.users} sub={`${t.signups_7d} new this week`} />
             <Stat label="Runs, last 24 h" value={t.runs_24h} sub={`${t.failed_24h} failed`} tone={t.failed_24h ? "bad" : undefined} />
             <Stat label="Model + search spend" value={usd(t.spend_today)} sub={`today · ${usd(t.spend_30d)} in 30 days`} />
@@ -105,7 +105,7 @@ export default function AdminPage() {
               {list.map((w) => (
                 <tr key={w.id} onClick={() => setOpen(w.id)} style={{ cursor: "pointer", background: open === w.id ? "var(--paper-2)" : undefined }}>
                   <td style={td}><div style={{ fontWeight: 600 }}>{w.name}</div><div style={{ fontSize: 12, color: "var(--faint)" }}>{w.owner ?? "no owner"} · {w.industry}{!w.onboarded_at && " · onboarding"}</div></td>
-                  <td style={td}><Pill tone={planTone(w)}>{planText(w)}</Pill>{w.mrr > 0 && <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 4 }}>{usd(w.mrr, 0)}/mo</div>}</td>
+                  <td style={td}>{w.staff ? <Pill tone="teal">staff</Pill> : <Pill tone={planTone(w)}>{planText(w)}</Pill>}{w.mrr > 0 && <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 4 }}>{usd(w.mrr, 0)}/mo</div>}</td>
                   <td style={td}>{w.bots_on}/{w.bots}</td>
                   <td style={td}>{w.runs_7d}{w.failed_7d > 0 && <span style={{ color: "var(--bad)" }}> · {w.failed_7d} failed</span>}</td>
                   <td style={td}>{usd(w.spend_30d)}</td>

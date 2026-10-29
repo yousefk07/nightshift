@@ -92,10 +92,10 @@ export default function SignIn() {
           // A1 Check your email
           <div style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 12 }}>
             <h1 style={{ fontSize: 30, margin: 0 }}>Check your email</h1>
-            <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 16, lineHeight: 1.55 }}>We sent a sign-in link to <b>{email}</b>. It works for 15 minutes. Or type the 6-digit code from the same email:</p>
+            <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 16, lineHeight: 1.55 }}>We sent a sign-in link to <b>{email}</b>. It works for 15 minutes. Or type the code from the same email:</p>
             {/* the code works in any browser, even when the link opens somewhere else or a mail scanner used it up */}
             <form onSubmit={(e) => { e.preventDefault(); verifyCode(); }} style={{ display: "flex", gap: 10 }}>
-              <Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" style={{ maxWidth: 160, letterSpacing: ".2em", fontSize: 18 }} />
+              <Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="12345678" style={{ maxWidth: 160, letterSpacing: ".2em", fontSize: 18 }} />
               <Button type="submit" disabled={busy || code.length < 6}>Sign in</Button>
             </form>
             <ErrorLine error={error} />

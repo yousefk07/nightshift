@@ -16,6 +16,28 @@ export async function sendMail(m: { to: string | string[]; subject: string; html
   return (await res.json()) as { id: string };
 }
 
+// The bot mark drawn with table cells, not an image, so it shows even when mail apps block pictures.
+const BOT = [".....aa.....", ".....oo.....", "..oooooooo..", ".occcccccco.", ".ocddddddco.", ".ocdaddadco.", ".ocddddddco.", ".occcccccco.", "..oooooooo.."];
+export function markHtml(px = 3) {
+  const fill: Record<string, string> = { o: "#f6f0e7", c: "#f6f0e7", d: "#221a24", a: "#f0c27a", ".": "#221a24" };
+  // each row is its own small table of same-colour runs, which keeps the markup short and the widths exact
+  const run = (n: number, color: string) => `<td width="${n * px}" height="${px}" bgcolor="${color}" style="font-size:0;line-height:0"></td>`;
+  const rows = BOT.map((r) => {
+    const cells: string[] = [];
+    for (let i = 0; i < r.length; ) {
+      let j = i;
+      while (j < r.length && fill[r[j]] === fill[r[i]]) j++;
+      cells.push(run(j - i, fill[r[i]]));
+      i = j;
+    }
+    return `<tr><td><table cellpadding="0" cellspacing="0" border="0"><tr>${cells.join("")}</tr></table></td></tr>`;
+  }).join("");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0">${rows}</table>`;
+}
+
+// The header lockup: the bot and the wordmark side by side in two cells, which every mail app keeps on one line.
+export const brandHtml = () => `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="middle">${markHtml(3)}</td><td valign="middle" style="padding-left:12px;color:#f1e6d6;font-size:18px;font-weight:700;letter-spacing:-0.01em;font-family:${FONT}">nightshift</td></tr></table>`;
+
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const INK = "#2b2320", INK2 = "#4a3f38", MUTED = "#857769", LINE = "#eee4d6", ACCENT = "#b46a22";
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
@@ -34,7 +56,7 @@ export function layout(o: { heading: string; eyebrow?: string; lead?: string; pa
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efe8dd"><tr><td align="center" style="padding:32px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#fffdf9;border:1px solid #e4d9cb;border-radius:16px;overflow:hidden">
 <tr><td style="background:#221a24;padding:16px 28px">
-<a href="${esc(app)}" style="text-decoration:none"><img src="${esc(app)}/icon.png" width="28" height="28" alt="" style="vertical-align:middle;border:0;border-radius:6px"><span style="vertical-align:middle;margin-left:10px;color:#f1e6d6;font-size:17px;font-weight:700;letter-spacing:-0.01em">nightshift</span></a>
+${brandHtml()}
 </td></tr>
 <tr><td style="padding:30px 28px 26px">
 ${o.eyebrow ? `<div style="font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${ACCENT};margin:0 0 8px">${esc(o.eyebrow)}</div>` : ""}

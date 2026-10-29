@@ -205,7 +205,8 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
     if (!workspaces.has(id)) workspaces.set(id, await store.workspace(id));
     return workspaces.get(id)!;
   };
-  const active = (ws: Workspace) => !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
+  // nothing runs until onboarding is done, or once the workspace is deleted, canceled or past its trial
+  const active = (ws: Workspace) => !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
 
   await executeDue(store);
 

@@ -251,6 +251,15 @@ describe("the team", () => {
     expect(await tick(store)).toEqual([]);
     expect(ds.requests).toHaveLength(0);
   });
+
+  it("nothing runs before onboarding is finished", async () => {
+    const { store, ws, db } = memStore();
+    ws.onboarded_at = null;
+    db.bots[0].next_run_at = new Date(Date.now() - 1000).toISOString();
+    const ds = fakeDeepSeek([{ text: "hi" }]);
+    expect(await tick(store)).toEqual([]);
+    expect(ds.requests).toHaveLength(0);
+  });
 });
 
 describe("screens", () => {

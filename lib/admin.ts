@@ -2,12 +2,13 @@ import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { HttpError, sessionClient } from "./auth";
 import { PLANS, SEAT_PRICE } from "./plans";
+import { adminEmails, isStaff } from "./staff";
 import { admin } from "./store-supabase";
 
 // The Nightshift admin: the people in ADMIN_EMAILS see every workspace, read-only. Signed in with a browser
 // session only (never an API token), a confirmed email, and the authenticator step done.
 
-export const adminEmails = () => (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+export { adminEmails } from "./staff";
 
 export async function requireAdmin() {
   const supa = await sessionClient();
@@ -70,9 +71,11 @@ export async function adminOverview() {
   const workspaces = ws.data!.map((w) => {
     const r = rBy.get(w.id) ?? [];
     const owner = (mBy.get(w.id) ?? []).find((m) => m.role === "owner");
+    const ownerEmail = owner ? emailOf.get(owner.user_id) ?? null : null;
     return {
       ...w,
-      owner: owner ? emailOf.get(owner.user_id) ?? null : null,
+      owner: ownerEmail,
+      staff: isStaff(ownerEmail),
       members: (mBy.get(w.id) ?? []).length,
       bots: (bBy.get(w.id) ?? []).length,
       bots_on: (bBy.get(w.id) ?? []).filter((b) => b.enabled).length,
@@ -81,22 +84,23 @@ export async function adminOverview() {
       spend_30d: sum((uBy.get(w.id) ?? []).map((u) => Number(u.cost_usd))),
       connections: (cBy.get(w.id) ?? []).map((c) => `${c.provider}${c.status === "ok" ? "" : " (broken)"}`),
       waiting: (pBy.get(w.id) ?? []).length,
-      mrr: w.deleted_at ? 0 : monthly(w.plan, w.plan_interval, w.extra_seats),
+      mrr: w.deleted_at || isStaff(ownerEmail) ? 0 : monthly(w.plan, w.plan_interval, w.extra_seats),
       last_run_at: r[0]?.created_at ?? null,
     };
   });
-  const live = workspaces.filter((w) => !w.deleted_at);
+  const live = workspaces.filter((w) => !w.deleted_at && !w.staff); // customers only
   const allRuns = runs.data!;
   return {
     totals: {
-      users: people.length,
+      users: people.filter((p) => !isStaff(p.email)).length,
       workspaces: live.length,
-      deleted: workspaces.length - live.length,
+      deleted: workspaces.filter((w) => w.deleted_at).length,
+      staff: workspaces.filter((w) => w.staff).length,
       trials: live.filter((w) => w.plan === "trial" && w.trial_ends_at > new Date().toISOString()).length,
       expired_trials: live.filter((w) => w.plan === "trial" && w.trial_ends_at <= new Date().toISOString()).length,
       paid: live.filter((w) => w.plan in PLANS).length,
       mrr: sum(live.map((w) => w.mrr)),
-      signups_7d: people.filter((p) => p.created_at >= since7).length,
+      signups_7d: people.filter((p) => p.created_at >= since7 && !isStaff(p.email)).length,
       runs_24h: allRuns.filter((r) => r.created_at >= since1).length,
       failed_24h: allRuns.filter((r) => r.created_at >= since1 && r.status === "failed").length,
       spend_today: sum(usage.data!.filter((u) => u.day === today).map((u) => Number(u.cost_usd))),
