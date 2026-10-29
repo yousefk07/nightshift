@@ -40,12 +40,23 @@ export async function sessionClient() {
   });
 }
 
+// The workspace a request acts in: the one asked for, else the oldest that isn't being deleted (a deleted one
+// still opens, so its owner can restore it).
 async function membership(userId: string, wsId?: string | null) {
   const db = admin();
-  let q = db.from("members").select("workspace_id, role").eq("user_id", userId).order("created_at").limit(1);
+  let q = db.from("members").select("workspace_id, role, workspaces(deleted_at)").eq("user_id", userId).order("created_at").limit(20);
   if (wsId) q = q.eq("workspace_id", wsId);
-  const { data } = await q.maybeSingle();
-  return data as { workspace_id: string; role: Role } | null;
+  const { data } = await q;
+  const rows = (data ?? []) as unknown as { workspace_id: string; role: Role; workspaces: { deleted_at: string | null } | null }[];
+  const pick = rows.find((r) => !r.workspaces?.deleted_at) ?? rows[0];
+  return pick ? { workspace_id: pick.workspace_id, role: pick.role } : null;
+}
+
+// A new user's first workspace gets an id made from their user id, so two first requests racing each other
+// make one workspace, not two.
+function firstWorkspaceId(userId: string) {
+  const h = sha256(`nightshift-first-workspace:${userId}`);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
 export async function caller(req: Request): Promise<Caller> {
@@ -75,7 +86,7 @@ export async function caller(req: Request): Promise<Caller> {
 // The caller's workspace. First sign-in: accept a waiting invite, or make a new workspace (onboarding fills it in).
 export async function ensureWorkspace(userId: string, email: string, wanted?: string | null): Promise<{ ws: Workspace; role: Role }> {
   const db = admin(), store = supabaseStore(db);
-  const m = await membership(userId, wanted);
+  const m = (await membership(userId, wanted)) ?? (wanted ? await membership(userId) : null); // a stale pick falls back
   if (m) return { ws: await store.workspace(m.workspace_id), role: m.role };
 
   const { data: invite } = await db.from("invites").select("id, workspace_id, role").ilike("email", email).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -87,7 +98,17 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
     return { ws: await store.workspace(invite.workspace_id), role: invite.role };
   }
 
-  const { data: ws, error } = await db.from("workspaces").insert({ billing_email: email }).select().single();
+  const id = firstWorkspaceId(userId);
+  const { data: ws, error } = await db.from("workspaces").insert({ id, billing_email: email }).select().single();
+  if (error?.code === "23505") {
+    // another request is setting this same workspace up right now: wait for it, then use it
+    for (let i = 0; i < 20; i++) {
+      const again = await membership(userId);
+      if (again) return { ws: await store.workspace(again.workspace_id), role: again.role };
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    throw new Error("Your workspace is still being set up. Try again in a moment.");
+  }
   if (error) throw new Error(error.message);
   await db.from("members").insert({ workspace_id: ws.id, user_id: userId, role: "owner" });
   await db.from("profiles").upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: true });
