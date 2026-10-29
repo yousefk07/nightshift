@@ -1,3 +1,5 @@
+import { blocks, firstSentence, pieces } from "./markdown";
+
 // Outgoing mail from Nightshift itself (alerts, invites, the morning brief), through Resend.
 // The business's own customer emails go through their own mailbox (lib/connectors/mail.ts), never through here.
 
@@ -15,26 +17,76 @@ export async function sendMail(m: { to: string | string[]; subject: string; html
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+const INK = "#2b2320", INK2 = "#4a3f38", MUTED = "#857769", LINE = "#eee4d6", ACCENT = "#b46a22";
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 
-// The shared look of every Nightshift email: warm paper, one dark button.
-export function layout(o: { heading: string; paragraphs: string[]; button?: { label: string; url: string }; footer?: string }) {
-  const p = o.paragraphs.map((t) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#3a302b">${esc(t)}</p>`).join("");
-  const b = o.button ? `<p style="margin:22px 0"><a href="${esc(o.button.url)}" style="background:#2b2320;color:#faf6ef;padding:11px 18px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">${esc(o.button.label)}</a></p>` : "";
-  const html = `<!doctype html><html><body style="margin:0;background:#f4efe7;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif"><div style="max-width:520px;margin:0 auto;padding:32px 24px"><p style="font-weight:700;color:#2b2320;margin:0 0 20px">Nightshift</p><h1 style="font-size:21px;color:#2b2320;margin:0 0 16px">${esc(o.heading)}</h1>${p}${b}<p style="font-size:12px;color:#8a7d73;margin-top:28px">${esc(o.footer ?? "Nightshift · Nothing is sent without your OK.")}</p></div></body></html>`;
-  const text = [o.heading, "", ...o.paragraphs, o.button ? `\n${o.button.label}: ${o.button.url}` : "", "", o.footer ?? ""].join("\n");
+// The shared look of every Nightshift email: the dark nightshift bar, one white card, one dark button.
+// `body` is ready-made HTML (the brief); `paragraphs` are plain text.
+export function layout(o: { heading: string; eyebrow?: string; lead?: string; paragraphs?: string[]; body?: string; button?: { label: string; url: string }; footer?: string; preheader?: string }) {
+  const app = process.env.APP_URL || "https://www.nightshiftai.ca";
+  const p = (o.paragraphs ?? []).map((t) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${INK2}">${esc(t)}</p>`).join("");
+  const button = o.button
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:26px 0 4px"><tr><td style="background:${INK};border-radius:9px"><a href="${esc(o.button.url)}" style="display:inline-block;padding:12px 20px;color:#faf6ef;text-decoration:none;font-weight:600;font-size:14.5px;font-family:${FONT}">${esc(o.button.label)} &rarr;</a></td></tr></table>`
+    : "";
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(o.heading)}</title></head>
+<body style="margin:0;padding:0;background:#efe8dd;font-family:${FONT};-webkit-font-smoothing:antialiased">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${esc(o.preheader ?? o.lead ?? o.paragraphs?.[0] ?? "")}&#8199;&#847;&#8199;&#847;&#8199;&#847;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efe8dd"><tr><td align="center" style="padding:32px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#fffdf9;border:1px solid #e4d9cb;border-radius:16px;overflow:hidden">
+<tr><td style="background:#221a24;padding:16px 28px">
+<a href="${esc(app)}" style="text-decoration:none"><img src="${esc(app)}/icon.png" width="28" height="28" alt="" style="vertical-align:middle;border:0;border-radius:6px"><span style="vertical-align:middle;margin-left:10px;color:#f1e6d6;font-size:17px;font-weight:700;letter-spacing:-0.01em">nightshift</span></a>
+</td></tr>
+<tr><td style="padding:30px 28px 26px">
+${o.eyebrow ? `<div style="font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${ACCENT};margin:0 0 8px">${esc(o.eyebrow)}</div>` : ""}
+<h1 style="margin:0 0 14px;font-size:24px;line-height:1.25;color:${INK};font-weight:700;letter-spacing:-0.01em">${esc(o.heading)}</h1>
+${o.lead ? `<p style="margin:0 0 6px;font-size:16.5px;line-height:1.55;color:${INK2}">${inline(o.lead)}</p>` : ""}
+${p}${o.body ?? ""}${button}
+</td></tr>
+<tr><td style="padding:16px 28px;background:#faf6ef;border-top:1px solid ${LINE};font-size:12.5px;line-height:1.5;color:${MUTED}">${esc(o.footer ?? "Nothing is sent without your OK.")}</td></tr>
+</table>
+<p style="margin:16px 0 0;font-size:12px;color:#9c8f84">Nightshift &middot; <a href="${esc(app)}" style="color:#9c8f84">nightshiftai.ca</a></p>
+</td></tr></table>
+</body></html>`;
+  const text = [o.eyebrow, o.heading, "", o.lead, ...(o.paragraphs ?? []), o.button ? `\n${o.button.label}: ${o.button.url}` : "", "", o.footer ?? ""].filter((l) => l !== undefined).join("\n");
   return { html, text };
 }
 
-// Markdown-ish brief to simple HTML paragraphs and bullets.
-export function briefHtml(markdown: string) {
-  return markdown
-    .split(/\n{2,}/)
-    .map((block) => {
-      const lines = block.split("\n");
-      if (lines.every((l) => /^\s*[-*] /.test(l))) return `<ul style="padding-left:18px;margin:0 0 14px">${lines.map((l) => `<li style="margin:4px 0">${inline(l.replace(/^\s*[-*] /, ""))}</li>`).join("")}</ul>`;
-      if (/^#{1,3} /.test(block)) return `<h3 style="font-size:15px;margin:18px 0 8px;color:#2b2320">${inline(block.replace(/^#{1,3} /, ""))}</h3>`;
-      return `<p style="margin:0 0 14px;line-height:1.55">${inline(block).replace(/\n/g, "<br>")}</p>`;
-    })
-    .join("");
+// Inline markdown to email-safe HTML. Dots in code get a zero-width space so mail apps don't turn them into links.
+function inline(s: string) {
+  return pieces(s).map((x) =>
+    x.t === "b" ? `<b style="color:${INK};font-weight:650">${esc(x.v)}</b>`
+    : x.t === "code" ? `<span style="font-family:SFMono-Regular,Consolas,monospace;font-size:13px;background:#f4efe7;border-radius:4px;padding:1px 5px">${esc(x.v).replace(/\./g, ".&#8203;")}</span>`
+    : x.t === "link" ? `<a href="${esc(x.href)}" style="color:${ACCENT}">${esc(x.v)}</a>`
+    : esc(x.v)).join("");
 }
-const inline = (s: string) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+
+// A brief (or any bot text) as email sections: headings become small labels over a hairline, lists stay lists.
+export function briefHtml(markdown: string) {
+  return blocks(markdown).map((b, i) => {
+    if (b.kind === "h") return `<div style="margin:${i ? 26 : 18}px 0 10px;padding-top:${i ? 18 : 0}px;${i ? `border-top:1px solid ${LINE};` : ""}font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${MUTED}">${inline(b.lines[0])}</div>`;
+    if (b.kind === "ul" || b.kind === "ol") {
+      const tag = b.kind;
+      return `<${tag} style="margin:0 0 12px;padding-left:20px;color:${INK2}">${b.lines.map((l) => `<li style="margin:0 0 7px;font-size:15px;line-height:1.55">${inline(l)}</li>`).join("")}</${tag}>`;
+    }
+    return `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:${INK2}">${b.lines.map(inline).join("<br>")}</p>`;
+  }).join("");
+}
+
+// The morning brief email. Dawn's opening paragraph leads: its first sentence is the big heading (and the subject),
+// the rest sits under it; her sections follow.
+export function briefEmail(o: { day: string; headline: string; content: string; pending: number; url: string }) {
+  const date = new Date(`${o.day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  const paras = o.content.replace(/\r/g, "").split(/\n{2,}/);
+  const opens = paras[0] && !/^\s*(\*\*|#|[-*•] )/.test(paras[0]); // the content starts with a plain lead paragraph
+  const lead = (opens ? paras[0] : o.headline).trim();
+  const heading = firstSentence(lead, 60);
+  const rest = lead.replace(/\*\*/g, "").slice(lead.replace(/\*\*/g, "").indexOf(heading.replace(/…$/, "")) + heading.length).replace(/^[.!?:\s]+/, "").trim();
+  const body = (opens ? paras.slice(1) : paras).join("\n\n");
+  const { html, text } = layout({
+    eyebrow: `Morning brief · ${date}`, heading, lead: heading.endsWith("…") ? lead : rest || undefined, preheader: lead,
+    body: briefHtml(body),
+    button: o.pending ? { label: `Review ${o.pending} approval${o.pending === 1 ? "" : "s"}`, url: o.url } : { label: "Open the office", url: o.url },
+    footer: "Written by Dawn, your brief bot. Change the time, days or length in Settings → Notifications & brief.",
+  });
+  return { subject: `${heading} · ${date}`, html, text: `${text}\n\n${body}` };
+}

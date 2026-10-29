@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // The browser side of the API: fetch helpers, a polling/live data hook, and the live stream.
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
   }
 }
@@ -21,7 +21,7 @@ export async function api<T = any>(path: string, opts: { method?: string; json?:
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? `Request failed (${res.status})`, data?.code);
   return data as T;
 }
 
