@@ -33,7 +33,7 @@ function teamLine(bot: Bot, team: Bot[]) {
 
 async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[], team: Bot[]) {
   const def = botDef(bot.kind);
-  const [memories, members] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id)]);
+  const [memories, members] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id, { emails: false })]);
   const owner = members.find((m) => m.role === "owner");
   const messages = tools.filter((t) => t.risk === "message").map((t) => t.name);
   const money = tools.filter((t) => t.risk === "money").map((t) => t.name);

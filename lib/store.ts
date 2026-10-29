@@ -5,7 +5,8 @@ import type { Action, Bot, BotKind, Brief, Connection, ConnectionKind, Contact, 
 export interface Store {
   workspace(id: string): Promise<Workspace>;
   updateWorkspace(id: string, patch: Partial<Workspace>): Promise<void>;
-  members(ws: string): Promise<Member[]>;
+  members(ws: string, opts?: { emails?: boolean }): Promise<Member[]>; // emails: false skips the per-person auth lookup
+  connectionList(ws: string): Promise<Omit<Connection, "secret">[]>; // for screens: no secrets decrypted
 
   bots(ws: string): Promise<Bot[]>;
   bot(ws: string, kind: BotKind): Promise<Bot | null>;

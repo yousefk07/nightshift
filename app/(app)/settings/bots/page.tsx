@@ -5,7 +5,7 @@ import { useApp } from "@/components/AppShell";
 import { BotTile } from "@/components/office/cards";
 import { Head } from "@/components/pixel";
 import { Locked, Page, Row, Section } from "@/components/settings";
-import { Button, ErrorLine, Input, Select, TextArea, Toggle } from "@/components/ui";
+import { Button, ErrorLine, Input, Select, TextArea, Toggle, useDialog } from "@/components/ui";
 import { api, clock, useApi } from "@/lib/client";
 
 // S2 Bots & approvals: who's on shift, when they work, what they can touch; guardrails; the never-contact list;
@@ -122,6 +122,7 @@ function Hire({ catalog, onClose, onHired, max, count }: { catalog: Catalog; onC
   const [industry, setIndustry] = useState(catalog.industry);
   const [list, setList] = useState(catalog.bots);
   const [q, setQ] = useState("");
+  const panel = useDialog(onClose);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (industry === catalog.industry) return queueMicrotask(() => setList(catalog.bots));
@@ -142,7 +143,7 @@ function Hire({ catalog, onClose, onHired, max, count }: { catalog: Catalog; onC
   };
   return (
     <div role="dialog" aria-modal="true" aria-label="Hire a bot" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,17,26,.5)", display: "grid", placeItems: "center", zIndex: 60, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "#f8f2e9", borderRadius: 14, boxShadow: "var(--shadow)", overflow: "hidden" }}>
+      <div ref={panel} onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,100%)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "#f8f2e9", borderRadius: 14, boxShadow: "var(--shadow)", overflow: "hidden" }}>
         <div style={{ padding: "18px 22px", borderBottom: "1px solid #e4d9ca", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 19, fontWeight: 700 }}>Hire a bot</div>

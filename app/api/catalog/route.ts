@@ -9,7 +9,7 @@ export const GET = route(async (req, me) => {
   const p = new URL(req.url).searchParams;
   const industry = (p.get("industry") ?? me.ws.industry) as Industry;
   const store = supabaseStore();
-  const [team, conns] = await Promise.all([store.bots(me.ws.id), store.connections(me.ws.id)]);
+  const [team, conns] = await Promise.all([store.bots(me.ws.id), store.connectionList(me.ws.id)]);
   const have = new Set(conns.filter((c) => c.status === "ok").flatMap((c) => c.kinds as string[]));
   if (process.env.TAVILY_API_KEY) have.add("web");
   const list = p.get("all") === "1" ? TEMPLATES : forIndustry(industry in INDUSTRIES ? industry : "general");

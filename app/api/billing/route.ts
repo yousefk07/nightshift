@@ -16,7 +16,7 @@ export const GET = route(async (_req, me) => {
   const [usage, members, conns, summary] = await Promise.all([
     store.usageSince(ws.id, localDate(ws.timezone, periodStart)),
     admin().from("members").select("role").eq("workspace_id", ws.id),
-    store.connections(ws.id),
+    store.connectionList(ws.id),
     billingSummary(ws).catch(() => ({ invoices: [], card: null })),
   ]);
   return Response.json({

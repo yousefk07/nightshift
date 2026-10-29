@@ -43,12 +43,14 @@ export function supabaseStore(db = admin()): Store {
     async updateWorkspace(id, patch) {
       await q(db.from("workspaces").update(patch).eq("id", id));
     },
-    async members(ws) {
+    async members(ws, opts = {}) {
       const rows = await q<(Member & { workspace_id: string })[]>(db.from("members").select("user_id, role, notify").eq("workspace_id", ws));
       const profiles = await q<{ user_id: string; full_name: string }[]>(db.from("profiles").select("user_id, full_name").in("user_id", rows.map((r) => r.user_id)));
+      const name = (id: string) => profiles.find((p) => p.user_id === id)?.full_name ?? "";
+      if (opts.emails === false) return rows.map((r) => ({ ...r, email: "", full_name: name(r.user_id) }));
       return Promise.all(rows.map(async (r) => {
         const { data } = await db.auth.admin.getUserById(r.user_id);
-        return { ...r, email: data.user?.email ?? "", full_name: profiles.find((p) => p.user_id === r.user_id)?.full_name ?? "" };
+        return { ...r, email: data.user?.email ?? "", full_name: name(r.user_id) };
       }));
     },
 
@@ -73,6 +75,9 @@ export function supabaseStore(db = admin()): Store {
     },
 
     // ---- connections ----
+    async connectionList(ws) {
+      return q<Omit<Connection, "secret">[]>(db.from("connections").select("id, workspace_id, provider, kinds, account, scopes, status, error, broken_at, last_synced_at, created_at, updated_at").eq("workspace_id", ws));
+    },
     async connections(ws) {
       const rows = await q<any[]>(db.from("connections").select("*").eq("workspace_id", ws));
       return rows.map(({ secret_enc, ...c }) => ({ ...c, secret: decrypt(secret_enc) }) as Connection);

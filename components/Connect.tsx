@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
-import { Button, ErrorLine, Input } from "./ui";
+import { Button, ErrorLine, Input, useDialog } from "./ui";
 
 // Connecting a tool: which providers each kind offers, and the small form for the ones that take a key or a link.
 
@@ -88,11 +88,7 @@ export function ConnectSheet({ kind, onClose, onDone }: { kind: Kind; onClose: (
   const set = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) => setFields((x) => ({ ...x, [f]: e.target.value }));
   const back = typeof location !== "undefined" ? location.pathname : "/settings/connections";
 
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    addEventListener("keydown", esc);
-    return () => removeEventListener("keydown", esc);
-  }, [onClose]);
+  const panel = useDialog(onClose);
 
   const save = async () => {
     setBusy(true);
@@ -125,7 +121,7 @@ export function ConnectSheet({ kind, onClose, onDone }: { kind: Kind; onClose: (
 
   return (
     <div role="dialog" aria-modal="true" aria-label={`Connect ${k.label}`} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,17,26,.55)", backdropFilter: "blur(2px)", display: "grid", placeItems: "center", zIndex: 60, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(480px,100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fbf7f1", color: "#2b2320", borderRadius: 16, boxShadow: "0 30px 70px -20px rgba(20,12,18,.55)", border: "1px solid #e4d9cb" }}>
+      <div ref={panel} onClick={(e) => e.stopPropagation()} style={{ width: "min(480px,100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fbf7f1", color: "#2b2320", borderRadius: 16, boxShadow: "0 30px 70px -20px rgba(20,12,18,.55)", border: "1px solid #e4d9cb" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "20px 20px 0" }}>
           {provider && <Tile p={provider} size={44} />}
           <div style={{ flex: 1, minWidth: 0 }}>

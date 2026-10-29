@@ -59,6 +59,7 @@ export function memStore(opts: { budget?: number; conns?: Partial<Connection>[];
     dueBots: async (at) => db.bots.filter((b) => b.enabled && b.next_run_at && new Date(b.next_run_at) <= at),
 
     connections: async () => db.conns,
+    connectionList: async () => db.conns.map(({ secret: _s, ...c }) => c),
     saveConnection: async (_ws, provider, kinds, account, secret) => {
       const c = db.conns.find((x) => x.provider === provider && x.account === account);
       if (c) Object.assign(c, { secret, kinds, status: "ok" });

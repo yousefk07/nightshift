@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { Head, type Persona } from "./pixel";
-import { Button } from "./ui";
+import { Button, useDialog } from "./ui";
 
 // The team cheering: everyone hops in turn under pixel confetti. For the big moments (a new plan, a first
 // connection). Click, Esc or the button closes it; with "reduce motion" on it's a still card.
@@ -20,11 +19,7 @@ const PIECES = Array.from({ length: 56 }, (_, i) => ({
 }));
 
 export function Celebrate({ title, line, team, onClose, cta = "Let's go" }: { title: string; line: string; team: (Persona & { name?: string })[]; onClose: () => void; cta?: string }) {
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    addEventListener("keydown", esc);
-    return () => removeEventListener("keydown", esc);
-  }, [onClose]);
+  const panel = useDialog(onClose);
   const crew = team.slice(0, 7);
 
   return (
@@ -32,7 +27,7 @@ export function Celebrate({ title, line, team, onClose, cta = "Let's go" }: { ti
       {PIECES.map((p, i) => (
         <span key={i} aria-hidden style={{ position: "absolute", top: 0, left: `${p.left}%`, width: p.size, height: p.size, background: p.color, animation: `ns-confetti ${p.dur}s ${p.delay}s cubic-bezier(.3,.6,.5,1) forwards`, opacity: 0, ["--dx" as string]: `${p.dx}px`, ["--spin" as string]: `${p.spin}deg` }} />
       ))}
-      <div onClick={(e) => e.stopPropagation()} style={{ position: "relative", textAlign: "center", color: "var(--night-ink)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, animation: "ns-pop .45s cubic-bezier(.2,.9,.3,1.2) both", maxWidth: 520 }}>
+      <div ref={panel} onClick={(e) => e.stopPropagation()} style={{ position: "relative", textAlign: "center", color: "var(--night-ink)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, animation: "ns-pop .45s cubic-bezier(.2,.9,.3,1.2) both", maxWidth: 520 }}>
         {[[-40, 10], [520, 40], [-20, 150], [500, 170]].map(([x, y], i) => (
           <span key={i} aria-hidden className="pixel" style={{ position: "absolute", left: x, top: y, color: "var(--gold)", fontSize: 22, animation: `ns-twinkle 1.6s ${i * 0.4}s ease-in-out infinite` }}>✦</span>
         ))}

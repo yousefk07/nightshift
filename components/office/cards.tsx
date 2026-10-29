@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api, clock, money } from "@/lib/client";
 import { Hop, useApp, useApprove, type DeskInfo } from "../AppShell";
 import { Head } from "../pixel";
-import { Button, ErrorLine, Input, Label, TextArea } from "../ui";
+import { Button, ErrorLine, Input, Label, TextArea, useDialog } from "../ui";
 
 // Approval cards, the way the design shows them: a row on the desk, a draft card in chat, and the review sheet.
 
@@ -95,6 +95,7 @@ export function Review({ a, onClose, onDone, pager }: { a: Action; onClose: () =
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const edited = JSON.stringify(fields) !== JSON.stringify(a.payload);
+  const panel = useDialog(onClose);
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setError(null);
@@ -111,8 +112,9 @@ export function Review({ a, onClose, onDone, pager }: { a: Action; onClose: () =
   const keys = Object.keys(fields).filter((k) => !HIDDEN.has(k));
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={a.title} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(23,17,26,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 100%)", maxHeight: "92vh", overflow: "auto", background: "#f8f2e9", color: "#2b2320", borderRadius: 14, boxShadow: "var(--shadow)", display: "flex", flexDirection: "column" }}>
+    <div role="dialog" aria-modal="true" aria-label={a.title} onClick={() => { if (!edited) onClose(); }} style={{ position: "fixed", inset: 0, background: "rgba(23,17,26,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}>
+      {/* an outside click doesn't throw away edits; Close or Escape does */}
+      <div ref={panel} onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 100%)", maxHeight: "92vh", overflow: "auto", background: "#f8f2e9", color: "#2b2320", borderRadius: 14, boxShadow: "var(--shadow)", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "18px 22px", borderBottom: "1px solid #e4d9ca", display: "flex", alignItems: "center", gap: 12 }}>
           {pager && (
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#776a5e" }}>

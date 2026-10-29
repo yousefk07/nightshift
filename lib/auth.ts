@@ -77,9 +77,8 @@ export async function caller(req: Request): Promise<Caller> {
   }
 
   const supa = await sessionClient();
-  const { data } = await supa.auth.getUser();
+  const [{ data }, { data: aal }] = await Promise.all([supa.auth.getUser(), supa.auth.mfa.getAuthenticatorAssuranceLevel()]);
   if (!data.user?.email) throw new HttpError(401, "Sign in first.");
-  const { data: aal } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
   const wanted = req.headers.get("x-workspace"); // members of several workspaces pick one
   const { ws, role } = await ensureWorkspace(data.user.id, data.user.email, wanted);
   return { userId: data.user.id, email: data.user.email, ws, role, via: "session", scope: "full", aal: aal?.currentLevel === "aal2" ? "aal2" : "aal1" };
