@@ -12,60 +12,93 @@ import { ActionRow, BotTile, BriefCard, Review, useCanApprove, type Action } fro
 // 01 Office: the pixel floor with a desk per bot, and the side panel for whichever desk is open.
 
 const OL = "#2a1f2b";
-const ROW = 216, TOP = 224;
-// The design's layout: three desks, then two offset between them, repeating; your desk sits below the last row.
-function deskPos(i: number) {
-  const cycle = Math.floor(i / 5), k = i % 5;
-  const row = cycle * 2 + (k < 3 ? 0 : 1);
-  const x = k < 3 ? [80, 410, 740][k] : [220, 600][k - 3];
-  return { left: x, top: TOP + row * ROW };
+const CELL_W = 250, CELL_H = 216, WALL = 214, BASE_W = 1020;
+
+// Balanced rows, at most 5 desks each: 6 bots = 3 + 3, 7 = 4 + 3, 11 = 4 + 4 + 3.
+function rowsOf(n: number) {
+  const rows = Math.max(1, Math.ceil(n / 5));
+  const per = Math.ceil(n / rows);
+  return Array.from({ length: rows }, (_, r) => Math.min(per, n - r * per)).filter((c) => c > 0);
+}
+
+// The room, laid out for its real size: every row centred, your desk centred below them, the decor centred on the
+// wall, and the whole floor scaled to fit the window so nothing scrolls.
+function layout(n: number, box: { w: number; h: number }) {
+  const rows = rowsOf(n);
+  const widest = Math.max(...rows, 1);
+  const needW = Math.max(BASE_W, widest * CELL_W + 80);
+  const needH = WALL + 46 + rows.length * CELL_H + 210;
+  const scale = box.w && box.h ? Math.min(1, box.w / needW, box.h / needH) : 1;
+  const W = box.w ? box.w / scale : needW, H = box.h ? box.h / scale : needH;
+  const spare = Math.max(0, H - needH);
+  const top = WALL + 46 + spare * 0.35;
+  const pos: { left: number; top: number }[] = [];
+  rows.forEach((count, r) => {
+    const start = (W - count * CELL_W) / 2 + (CELL_W - 200) / 2;
+    for (let k = 0; k < count; k++) pos.push({ left: start + k * CELL_W, top: top + r * CELL_H });
+  });
+  const ownerTop = top + rows.length * CELL_H + 6 + spare * 0.25;
+  return { W, H, scale, pos, ownerTop, ownerLeft: (W - 280) / 2, rugTop: top + CELL_H * 0.85, decorX: (W - BASE_W) / 2 };
+}
+
+function useBox(el: HTMLElement | null) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox({ w: Math.floor(e.contentRect.width), h: Math.floor(e.contentRect.height) }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return box;
 }
 
 const dot = (s: DeskInfo["status"], hue: number) => (s === "needs_you" ? `oklch(0.82 0.13 ${hue})` : s === "working" ? "oklch(0.78 0.1 150)" : s === "blocked" || s === "failed" ? "#e0675a" : "#8a7c80");
 const statusColor = (s: DeskInfo["status"]) => (s === "needs_you" ? "#f0c27a" : s === "blocked" || s === "failed" ? "#f19a8e" : s === "idle" || s === "paused" ? "#d4c4b6" : "#d9c9b4");
 const statusLine = (d: DeskInfo) => (d.status === "needs_you" ? "Needs you" : d.status_text || (d.status === "idle" ? "Idle" : d.status));
 
-function Decor({ height }: { height: number }) {
-  const b = (s: CSSProperties) => <div style={{ position: "absolute", ...s }} />;
+function Decor({ W, H, dx, rugTop, ownerTop }: { W: number; H: number; dx: number; rugTop: number; ownerTop: number }) {
+  const b = (st: CSSProperties) => <div style={{ position: "absolute", ...st }} />;
+  const x = (v: number) => v + dx;
+  const rugW = Math.min(W - 160, 760);
   return (
     <>
-      {b({ left: 0, top: 0, right: 0, height: 206, background: "#3b2f47", backgroundImage: "repeating-linear-gradient(90deg,transparent 0 56px,#372b42 56px 60px)" })}
-      {b({ left: 0, right: 0, top: 200, height: 14, background: "#2c2236" })}
-      {/* window with the moon and stars */}
-      {b({ left: 400, top: 34, width: 220, height: 136, background: "#1c2142", border: "8px solid #6b4a3a", boxShadow: `0 0 0 4px ${OL}` })}
-      {b({ left: 506, top: 42, width: 8, height: 136, background: "#6b4a3a" })}
-      {b({ left: 556, top: 56, width: 30, height: 30, background: "#f3e3b8", boxShadow: "inset -10px -6px 0 0 #1c2142" })}
-      {[[436, 64, 5], [470, 120, 4], [540, 130, 5], [592, 108, 4]].map(([l, t, s], i) => <div key={i} style={{ position: "absolute", left: l, top: t, width: s, height: s, background: i % 2 ? "#c9bda6" : "#e9dcc0" }} />)}
-      {b({ left: 392, top: 178, width: 236, height: 12, background: "#7d5641", boxShadow: `0 0 0 4px ${OL}` })}
-      {/* clock */}
-      {b({ left: 140, top: 60, width: 52, height: 52, background: "#efe2c9", border: `5px solid ${OL}`, boxSizing: "border-box" })}
-      {b({ left: 163, top: 70, width: 5, height: 18, background: OL })}
-      {b({ left: 163, top: 84, width: 16, height: 5, background: OL })}
-      {/* shelf with books and a plant */}
-      {b({ left: 770, top: 110, width: 180, height: 10, background: "#7d5641", boxShadow: `0 0 0 4px ${OL}` })}
-      {b({ left: 784, top: 70, width: 14, height: 40, background: "oklch(0.62 0.1 185)", boxShadow: `0 0 0 3px ${OL}` })}
-      {b({ left: 802, top: 78, width: 14, height: 32, background: "oklch(0.62 0.1 15)", boxShadow: `0 0 0 3px ${OL}` })}
-      {b({ left: 820, top: 66, width: 14, height: 44, background: "#e8d9bd", boxShadow: `0 0 0 3px ${OL}` })}
-      {b({ left: 880, top: 90, width: 30, height: 20, background: "#a5603f", boxShadow: `0 0 0 3px ${OL}` })}
-      {b({ left: 878, top: 64, width: 14, height: 22, background: "oklch(0.62 0.1 140)", boxShadow: `0 0 0 3px ${OL}` })}
-      {b({ left: 896, top: 58, width: 14, height: 28, background: "oklch(0.68 0.1 140)", boxShadow: `0 0 0 3px ${OL}` })}
-      {/* rug */}
-      {b({ left: 180, top: 420, width: 660, height: Math.max(250, height - 480), background: "#6b4a57", boxShadow: "0 0 0 6px #563848,inset 0 0 0 12px #6b4a57,inset 0 0 0 16px #80606b" })}
-      {b({ inset: 0, background: "radial-gradient(600px 380px at 50% 100%,rgba(255,190,120,.16),transparent),radial-gradient(500px 300px at 50% 20%,rgba(120,140,220,.08),transparent)", pointerEvents: "none" })}
+      {b({ left: 0, top: 0, width: W, height: 206, background: "#3b2f47", backgroundImage: "repeating-linear-gradient(90deg,transparent 0 56px,#372b42 56px 60px)" })}
+      {b({ left: 0, width: W, top: 200, height: 14, background: "#2c2236" })}
+      {/* window with the moon and stars, centred on the wall */}
+      {b({ left: x(400), top: 34, width: 220, height: 136, background: "#1c2142", border: "8px solid #6b4a3a", boxShadow: `0 0 0 4px ${OL}` })}
+      {b({ left: x(506), top: 42, width: 8, height: 136, background: "#6b4a3a" })}
+      {b({ left: x(556), top: 56, width: 30, height: 30, background: "#f3e3b8", boxShadow: "inset -10px -6px 0 0 #1c2142" })}
+      {[[436, 64, 5], [470, 120, 4], [540, 130, 5], [592, 108, 4]].map(([l, t, sz], i) => <div key={i} style={{ position: "absolute", left: x(l), top: t, width: sz, height: sz, background: i % 2 ? "#c9bda6" : "#e9dcc0" }} />)}
+      {b({ left: x(392), top: 178, width: 236, height: 12, background: "#7d5641", boxShadow: `0 0 0 4px ${OL}` })}
+      {/* clock on the left, shelf on the right */}
+      {b({ left: x(140), top: 60, width: 52, height: 52, background: "#efe2c9", border: `5px solid ${OL}`, boxSizing: "border-box" })}
+      {b({ left: x(163), top: 70, width: 5, height: 18, background: OL })}
+      {b({ left: x(163), top: 84, width: 16, height: 5, background: OL })}
+      {b({ left: x(770), top: 110, width: 180, height: 10, background: "#7d5641", boxShadow: `0 0 0 4px ${OL}` })}
+      {b({ left: x(784), top: 70, width: 14, height: 40, background: "oklch(0.62 0.1 185)", boxShadow: `0 0 0 3px ${OL}` })}
+      {b({ left: x(802), top: 78, width: 14, height: 32, background: "oklch(0.62 0.1 15)", boxShadow: `0 0 0 3px ${OL}` })}
+      {b({ left: x(820), top: 66, width: 14, height: 44, background: "#e8d9bd", boxShadow: `0 0 0 3px ${OL}` })}
+      {b({ left: x(880), top: 90, width: 30, height: 20, background: "#a5603f", boxShadow: `0 0 0 3px ${OL}` })}
+      {b({ left: x(878), top: 64, width: 14, height: 22, background: "oklch(0.62 0.1 140)", boxShadow: `0 0 0 3px ${OL}` })}
+      {b({ left: x(896), top: 58, width: 14, height: 28, background: "oklch(0.68 0.1 140)", boxShadow: `0 0 0 3px ${OL}` })}
+      {/* rug, centred under the lower rows and your desk */}
+      {b({ left: (W - rugW) / 2, top: rugTop, width: rugW, height: Math.max(200, Math.min(ownerTop + 196, H - 14) - rugTop), background: "#6b4a57", boxShadow: "0 0 0 6px #563848,inset 0 0 0 12px #6b4a57,inset 0 0 0 16px #80606b" })}
+      {b({ left: 0, top: 0, width: W, height: H, background: "radial-gradient(600px 380px at 50% 100%,rgba(255,190,120,.16),transparent),radial-gradient(500px 300px at 50% 20%,rgba(120,140,220,.08),transparent)", pointerEvents: "none" })}
     </>
   );
 }
 
 export function OfficeFloor({ desks, waiting, selected, onSelect }: { desks: DeskInfo[]; waiting: number; selected: string | null; onSelect: (id: string) => void }) {
-  const rows = Math.floor((desks.length - 1) / 5) * 2 + ((desks.length - 1) % 5 < 3 ? 1 : 2);
-  const ownerTop = TOP + Math.max(rows, 1) * ROW + 10;
-  const height = Math.max(900 - 56, ownerTop + 230);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const box = useBox(el);
+  const L = layout(desks.length, box);
   const pressable = (fn: () => void) => ({ role: "button", tabIndex: 0, onClick: fn, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } } });
   return (
-    <div style={{ position: "relative", width: 1020, height, flex: "none", background: "#5a4238", backgroundImage: "repeating-linear-gradient(0deg,transparent 0 40px,#4f3a31 40px 44px)" }}>
-      <Decor height={height} />
+    <div ref={setEl} style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#5a4238" }}>
+      <div style={{ position: "absolute", left: 0, top: 0, width: L.W, height: L.H, transform: `scale(${L.scale})`, transformOrigin: "0 0", background: "#5a4238", backgroundImage: "repeating-linear-gradient(0deg,transparent 0 40px,#4f3a31 40px 44px)", visibility: box.w ? "visible" : "hidden" }}>
+        <Decor W={L.W} H={L.H} dx={L.decorX} rugTop={L.rugTop} ownerTop={L.ownerTop} />
       {desks.map((d, i) => {
-        const p = deskPos(i), state = deskState(d.enabled ? d.status : "paused");
+        const p = L.pos[i], state = deskState(d.enabled ? d.status : "paused");
         return (
           <div key={d.id} {...pressable(() => onSelect(d.id))} aria-label={`${d.name}, ${d.role}, ${statusLine(d)}`} style={{ position: "absolute", left: p.left, top: p.top, width: 200, cursor: "pointer" }}>
             {selected === d.id && <div style={{ position: "absolute", left: -14, top: -54, width: 228, height: 296, border: `3px dashed oklch(0.82 0.13 ${d.hue})` }} />}
@@ -89,13 +122,14 @@ export function OfficeFloor({ desks, waiting, selected, onSelect }: { desks: Des
           </div>
         );
       })}
-      <div {...pressable(() => onSelect("me"))} aria-label={`Your desk, ${waiting} waiting for approval`} style={{ position: "absolute", left: 370, top: ownerTop, width: 280, cursor: "pointer" }}>
+      <div {...pressable(() => onSelect("me"))} aria-label={`Your desk, ${waiting} waiting for approval`} style={{ position: "absolute", left: L.ownerLeft, top: L.ownerTop, width: 280, cursor: "pointer" }}>
         {selected === "me" && <div style={{ position: "absolute", left: -14, top: -24, width: 308, height: 236, border: "3px dashed #f0c27a" }} />}
         {waiting > 0 && <div className="pixel" style={{ position: "absolute", left: 150, top: 46, width: 26, height: 26, background: "#f0c27a", border: `3px solid ${OL}`, fontSize: 15, color: OL, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 }}>{waiting}</div>}
         <div style={{ position: "relative", height: 150 }}><OwnerDesk /></div>
         <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}>
           <div className="pixel" style={{ background: "#f0c27a", border: `3px solid ${OL}`, padding: "3px 9px", fontSize: 15, color: OL, letterSpacing: ".04em" }}>YOUR DESK</div>
         </div>
+      </div>
       </div>
     </div>
   );
