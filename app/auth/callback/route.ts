@@ -9,7 +9,14 @@ export async function GET(req: Request) {
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next")?.startsWith("/") ? url.searchParams.get("next")! : "/office";
   if (url.searchParams.get("error")) return Response.redirect(`${url.origin}/signin?expired=1`, 302);
-  if (code) {
+  // token_hash links (the email template appends &token_hash={{ .TokenHash }}&type=email) work in any browser;
+  // ?code= links only work in the browser that asked for them
+  const tokenHash = url.searchParams.get("token_hash");
+  if (tokenHash) {
+    const type = (url.searchParams.get("type") ?? "email") as "email" | "magiclink" | "signup" | "invite" | "recovery";
+    const { error } = await (await sessionClient()).auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) return Response.redirect(`${url.origin}/signin?expired=1`, 302);
+  } else if (code) {
     const { error } = await (await sessionClient()).auth.exchangeCodeForSession(code);
     if (error) return Response.redirect(`${url.origin}/signin?expired=1`, 302);
   }

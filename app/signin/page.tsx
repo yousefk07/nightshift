@@ -15,6 +15,7 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [next, setNext] = useState("/office");
   const [isNew, setIsNew] = useState(false);
+  const [code, setCode] = useState("");
   // Google / Microsoft buttons show only once those providers are switched on in Supabase Auth.
   const [providers, setProviders] = useState<{ google: boolean; azure: boolean }>({ google: false, azure: false });
 
@@ -40,8 +41,16 @@ export default function SignIn() {
     setError(null);
     const { error } = await supabase().auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: redirect() } });
     setBusy(false);
-    if (error) setError(error.message);
+    if (error) setError(/rate limit/i.test(error.message) ? "Too many sign-in emails just now. Wait a few minutes, or use the code from the last email." : error.message);
     else setState("sent");
+  };
+  const verifyCode = async () => {
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase().auth.verifyOtp({ email: email.trim(), token: code, type: "email" });
+    setBusy(false);
+    if (error) setError(/expired|invalid/i.test(error.message) ? "That code didn't work. Check the newest email, or send a new one." : error.message);
+    else location.assign(next);
   };
   const oauth = async (provider: "google" | "azure") => {
     const { error } = await supabase().auth.signInWithOAuth({ provider, options: { redirectTo: redirect(), scopes: provider === "azure" ? "email" : undefined } });
@@ -83,7 +92,13 @@ export default function SignIn() {
           // A1 Check your email
           <div style={{ maxWidth: 420, display: "flex", flexDirection: "column", gap: 12 }}>
             <h1 style={{ fontSize: 30, margin: 0 }}>Check your email</h1>
-            <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 16, lineHeight: 1.55 }}>We sent a sign-in link to <b>{email}</b>. It works for 15 minutes.</p>
+            <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 16, lineHeight: 1.55 }}>We sent a sign-in link to <b>{email}</b>. It works for 15 minutes. Or type the 6-digit code from the same email:</p>
+            {/* the code works in any browser, even when the link opens somewhere else or a mail scanner used it up */}
+            <form onSubmit={(e) => { e.preventDefault(); verifyCode(); }} style={{ display: "flex", gap: 10 }}>
+              <Input inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" style={{ maxWidth: 160, letterSpacing: ".2em", fontSize: 18 }} />
+              <Button type="submit" disabled={busy || code.length < 6}>Sign in</Button>
+            </form>
+            <ErrorLine error={error} />
             <div style={{ display: "flex", gap: 10 }}>
               <Button kind="outline" onClick={sendLink} disabled={busy}>Resend link</Button>
               <Button kind="ghost" onClick={() => setState("form")}>Use a different email</Button>
