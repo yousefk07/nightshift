@@ -66,6 +66,11 @@ export default function Onboarding() {
     setCatalog(c.bots);
     setPicked(new Set(c.bots.filter((b) => b.suggested).map((b) => b.id)));
   };
+  // Coming back to step 3 or 4 (a reload, Save and exit, a connect round trip): the team list loads again with the
+  // suggested bots picked, so "Start the night shift" never sends an empty team.
+  useEffect(() => {
+    if (me && step >= 3 && !catalog.length) queueMicrotask(loadCatalog);
+  }, [me, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async (nextStep: number, extra: Record<string, unknown> = {}) => {
     setBusy(true);
@@ -293,7 +298,7 @@ export default function Onboarding() {
               <ErrorLine error={error} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
                 <Button kind="ghost" onClick={() => setStep(3)}>← Back</Button>
-                <Button size="lg" disabled={busy} onClick={start}>{busy ? "Starting…" : "Start the night shift"}</Button>
+                <Button size="lg" disabled={busy || !picked.size} onClick={start}>{busy ? "Starting…" : !picked.size ? "Loading your team…" : "Start the night shift"}</Button>
               </div>
             </>
           )}
