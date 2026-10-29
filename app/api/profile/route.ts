@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, route } from "@/lib/auth";
+import { body, route, requireWrite } from "@/lib/auth";
 import { admin } from "@/lib/store-supabase";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -18,11 +18,13 @@ export const GET = route(async (_req, me) => {
 });
 
 export const PATCH = route(async (req, me) => {
+  requireWrite(me);
   const patch = await body(req, (v) => Patch.parse(v));
   const { data, error } = await admin().from("profiles").upsert({ user_id: me.userId, ...patch, updated_at: new Date().toISOString() }).select().single();
   if (error) throw new Error(error.message);
-  // The signature also lives in team memory, so every bot signs off the same way.
-  if (patch.signature !== undefined) {
+  // The owner's signature also lives in team memory, so every bot signs off the same way. Only the owner's:
+  // anyone else's stays on their own profile.
+  if (patch.signature !== undefined && me.role === "owner") {
     const db = admin();
     await db.from("memories").delete().eq("workspace_id", me.ws.id).eq("subject", "Owner's sign-off and tone");
     if (patch.signature.trim()) await db.from("memories").insert({ workspace_id: me.ws.id, subject: "Owner's sign-off and tone", fact: patch.signature.trim(), user_id: me.userId });

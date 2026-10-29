@@ -1,4 +1,4 @@
-import { botDef, starters, taskFor, TEMPLATES, type Industry } from "../bots";
+import { botDef, starters, taskFor, TEMPLATES, type BotTemplate, type Industry } from "../bots";
 import type { Store } from "../store";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
@@ -82,7 +82,7 @@ export async function approveAction(store: Store, ws: Workspace, id: string, who
   if (a.status !== "pending") throw new ApprovalError(`This was already ${a.status}.`, 409);
   if (!canApprove(who.role, a)) throw new ApprovalError(a.risk === "money" ? "Only owners and approvers can approve money." : "Your role can't approve this.", 403);
   const send_after = new Date(now.getTime() + UNDO_SECONDS * 1000).toISOString();
-  await store.updateAction(a.id, { status: "sending", send_after, payload: editedPayload ?? a.payload, decided_by: who.userId, decided_at: now.toISOString() });
+  if (!(await store.moveAction(a.id, ["pending"], { status: "sending", send_after, payload: editedPayload ?? a.payload, decided_by: who.userId, decided_at: now.toISOString() }))) throw new ApprovalError("Someone just decided this one.", 409);
   await store.log(ws.id, { actor_type: "user", actor_id: who.userId, action: "approved", target: a.title, data: { action_id: a.id, edited: !!editedPayload } });
   return { status: "sending" as const, undo_until: send_after };
 }
@@ -91,7 +91,8 @@ export async function undoAction(store: Store, ws: Workspace, id: string, userId
   const a = await store.action(ws.id, id);
   if (!a) throw new ApprovalError("No such approval.", 404);
   if (a.status !== "sending") throw new ApprovalError(a.status === "done" ? "Too late: it already went out." : `This is ${a.status}.`, 409);
-  await store.updateAction(a.id, { status: "pending", send_after: null, decided_by: null, decided_at: null });
+  // only while it's still waiting out the undo window: once the tick has picked it up, it's going out
+  if (!(await store.moveAction(a.id, ["sending"], { status: "pending", send_after: null, decided_by: null, decided_at: null }))) throw new ApprovalError("Too late: it's already going out.", 409);
   await store.log(ws.id, { actor_type: "user", actor_id: userId, action: "undid", target: a.title });
   return { status: "pending" as const };
 }
@@ -101,7 +102,7 @@ export async function rejectAction(store: Store, ws: Workspace, id: string, who:
   if (!a) throw new ApprovalError("No such approval.", 404);
   if (a.status !== "pending") throw new ApprovalError(`This was already ${a.status}.`, 409);
   if (who.role === "viewer") throw new ApprovalError("Viewers can't change approvals.", 403);
-  await store.updateAction(a.id, { status: "rejected", decided_by: who.userId, decided_at: new Date().toISOString() });
+  if (!(await store.moveAction(a.id, ["pending"], { status: "rejected", decided_by: who.userId, decided_at: new Date().toISOString() }))) throw new ApprovalError("Someone just decided this one.", 409);
   await store.log(ws.id, { actor_type: "user", actor_id: who.userId, action: "discarded", target: a.title });
   const bot = (await store.bots(ws.id)).find((b) => b.id === a.bot_id);
   if (bot) await settleStatus(store, ws, bot);
@@ -113,7 +114,7 @@ export async function reviseAction(store: Store, ws: Workspace, id: string, note
   const a = await store.action(ws.id, id);
   if (!a) throw new ApprovalError("No such approval.", 404);
   if (a.status !== "pending") throw new ApprovalError(`This was already ${a.status}.`, 409);
-  await store.updateAction(a.id, { status: "revising" });
+  if (!(await store.moveAction(a.id, ["pending"], { status: "revising" }))) throw new ApprovalError("Someone just decided this one.", 409);
   const thread = a.thread_id ?? (await store.room(ws.id)).id;
   const run = await store.createRun({
     workspace_id: ws.id, bot_id: a.bot_id, trigger: "revise", status: "queued", thread_id: thread,
@@ -158,8 +159,13 @@ export async function executeAction(store: Store, ws: Workspace, a: Action) {
 export async function executeDue(store: Store, limit = 20) {
   const done: { id: string; status: string }[] = [];
   for (const a of await store.claimDueActions(limit)) {
-    const ws = await store.workspace(a.workspace_id);
-    done.push({ id: a.id, ...(await executeAction(store, ws, a)) });
+    try {
+      const ws = await store.workspace(a.workspace_id);
+      done.push({ id: a.id, ...(await executeAction(store, ws, a)) });
+    } catch (e) {
+      await store.updateAction(a.id, { status: "failed", error: (e as Error).message }).catch(() => {});
+      done.push({ id: a.id, status: "failed" });
+    }
   }
   return done;
 }
@@ -208,24 +214,32 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
   // nothing runs until onboarding is done, or once the workspace is deleted, canceled or past its trial
   const active = (ws: Workspace) => !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
 
+  await store.reapStuck(new Date(now.getTime() - 15 * 60_000));
   await executeDue(store);
 
-  for (const run of await store.claimQueuedRuns(10)) {
-    if (Date.now() > deadline) break;
-    const ws = await wsOf(run.workspace_id);
-    const bot = (await store.bots(ws.id)).find((b) => b.id === run.bot_id);
-    if (!bot?.enabled || !active(ws)) {
-      await store.updateRun(run.id, { status: "stopped", error: bot?.enabled ? "Plan inactive" : "Bot is paused" });
-      continue;
+  // claimed one at a time, so a tick that runs out of time never leaves claimed work stuck "running"
+  for (let n = 0; n < 10 && Date.now() < deadline; n++) {
+    const [run] = await store.claimQueuedRuns(1);
+    if (!run) break;
+    try {
+      const ws = await wsOf(run.workspace_id);
+      const bot = (await store.bots(ws.id)).find((b) => b.id === run.bot_id);
+      if (!bot?.enabled || !active(ws)) {
+        await store.updateRun(run.id, { status: "stopped", error: bot?.enabled ? "Plan inactive" : "Bot is paused" });
+        continue;
+      }
+      const history = run.thread_id ? historyToChat(await store.messages(run.thread_id, { limit: 20 }), bot.id) : [];
+      const result = await runBot(store, { ws, bot, run, input: run.input, history });
+      if (run.trigger === "revise") {
+        const old = (await store.actions(ws.id, "revising")).filter((a) => a.bot_id === bot.id);
+        for (const a of old) await store.updateAction(a.id, { status: result.actions.length ? "rejected" : "pending" }); // a new card replaces it
+      }
+      await reportInRoom(store, ws, bot, run, result);
+      done.push({ bot: bot.kind, trigger: run.trigger, status: result.status });
+    } catch (e) {
+      console.error("tick: queued run", run.id, e);
+      await store.updateRun(run.id, { status: "failed", error: (e as Error).message, finished_at: new Date().toISOString() }).catch(() => {});
     }
-    const history = run.thread_id ? historyToChat(await store.messages(run.thread_id, { limit: 20 }), bot.id) : [];
-    const result = await runBot(store, { ws, bot, run, input: run.input, history });
-    if (run.trigger === "revise") {
-      const old = (await store.actions(ws.id, "revising")).filter((a) => a.bot_id === bot.id);
-      for (const a of old) await store.updateAction(a.id, { status: result.actions.length ? "rejected" : "pending" }); // a new card replaces it
-    }
-    await reportInRoom(store, ws, bot, run, result);
-    done.push({ bot: bot.kind, trigger: run.trigger, status: result.status });
   }
 
   for (const run of (await opts.retries?.()) ?? []) {
@@ -242,21 +256,30 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
 
   for (const bot of await store.dueBots(now)) {
     if (Date.now() > deadline) break;
+    let def: BotTemplate;
+    try { def = botDef(bot.kind); } catch {
+      await store.updateBot(bot.id, { next_run_at: null }); // a template that's gone: off the schedule, not in the way
+      continue;
+    }
     const ws = await wsOf(bot.workspace_id);
     if (!active(ws)) continue;
-    const def = botDef(bot.kind);
     // Move the schedule on first, so an overlapping tick never runs the same bot twice.
     const next = nextRun(def.schedule, ws.timezone, now)?.toISOString() ?? null;
     await store.updateBot(bot.id, { next_run_at: next });
     bot.next_run_at = next;
-    const input = taskFor(def, bot.last_run_at);
-    const run = await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger: "schedule", input });
-    const result = await runBot(store, { ws, bot, run, input });
-    await store.updateBot(bot.id, { last_run_at: now.toISOString() });
-    // Frequent watchers (every 15 min) only speak up in the room when there's something to say.
-    const frequent = def.schedule && "everyMinutes" in def.schedule && def.schedule.everyMinutes < 120;
-    if (!frequent || result.actions.length || result.status !== "done") await reportInRoom(store, ws, bot, run, result);
-    done.push({ bot: bot.kind, trigger: "schedule", status: result.status });
+    try {
+      const input = taskFor(def, bot.last_run_at);
+      const run = await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger: "schedule", input });
+      const result = await runBot(store, { ws, bot, run, input });
+      // the "since" bookmark only moves on a finished run, so mail that came in during a failed one isn't skipped
+      if (result.status === "done") await store.updateBot(bot.id, { last_run_at: now.toISOString() });
+      // Frequent watchers (every 15 min) only speak up in the room when there's something to say.
+      const frequent = def.schedule && "everyMinutes" in def.schedule && def.schedule.everyMinutes < 120;
+      if (!frequent || result.actions.length || result.status !== "done") await reportInRoom(store, ws, bot, run, result);
+      done.push({ bot: bot.kind, trigger: "schedule", status: result.status });
+    } catch (e) {
+      console.error("tick: scheduled bot", bot.id, e); // one bot's trouble doesn't stop the others
+    }
   }
   return done;
 }

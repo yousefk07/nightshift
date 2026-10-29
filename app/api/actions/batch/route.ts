@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { z } from "zod";
-import { body, HttpError, requireWrite, route } from "@/lib/auth";
+import { body, HttpError, requireMoneyStep, requireWrite, route } from "@/lib/auth";
 import { approveAction, executeDue, rejectAction, UNDO_SECONDS } from "@/lib/engine/flows";
 import { supabaseStore } from "@/lib/store-supabase";
 
@@ -19,6 +19,7 @@ export const POST = route(async (req, me) => {
   const b = await body(req, (v) => Batch.parse(v));
   const store = supabaseStore();
   const pending = await store.actions(me.ws.id, "pending");
+  let moneyChecked = false;
   const picked = new Set<string>(b.ids ?? []);
   for (const n of b.numbers ?? []) {
     const a = pending[n - 1];
@@ -29,6 +30,7 @@ export const POST = route(async (req, me) => {
   const results = [];
   for (const id of picked) {
     try {
+      if (b.decision === "approve" && !moneyChecked && pending.find((a) => a.id === id)?.risk === "money") { await requireMoneyStep(me); moneyChecked = true; }
       const r = b.decision === "approve" ? await approveAction(store, me.ws, id, me) : await rejectAction(store, me.ws, id, me);
       results.push({ id, title: pending.find((a) => a.id === id)?.title, ...r });
     } catch (e) {

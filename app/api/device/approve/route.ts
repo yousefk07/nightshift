@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { body, HttpError, requireWrite, route } from "@/lib/auth";
+import { body, HttpError, requireWrite, route, requireStrongSession } from "@/lib/auth";
 import { encrypt, newToken, sha256 } from "@/lib/crypto";
 import { admin } from "@/lib/store-supabase";
 
 // Step 2, in the browser (signed in): "Approve this device". Makes the token the CLI then collects.
 export const POST = route(async (req, me) => {
   requireWrite(me);
-  if (me.via !== "session") throw new HttpError(403, "Approve devices from the web app.");
+  await requireStrongSession(me);
   const { code, scope } = await body(req, (v) => z.object({ code: z.string().min(8).max(12), scope: z.enum(["full", "read"]).default("full") }).parse(v));
   const db = admin();
   const { data: row } = await db.from("device_codes").select("*").eq("user_code", code.toUpperCase()).maybeSingle();

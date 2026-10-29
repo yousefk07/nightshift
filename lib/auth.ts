@@ -119,6 +119,23 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
   return { ws: await store.workspace(ws.id), role: "owner" };
 }
 
+// Members who set up an authenticator must use it for money, on every path: one card, "Approve all", the CLI.
+// A CLI token can never carry that step, so money from the CLI is refused for them; it's done in the app.
+export async function hasAuthenticator(userId: string) {
+  const { data } = await admin().auth.admin.mfa.listFactors({ userId });
+  return (data?.factors ?? []).some((f) => f.status === "verified");
+}
+export async function requireMoneyStep(me: Caller) {
+  if (process.env.REQUIRE_2FA_FOR_MONEY === "0" || !(await hasAuthenticator(me.userId))) return;
+  if (me.via !== "session") throw new HttpError(403, "Approve money in the Nightshift app, where you can confirm with your authenticator.");
+  if (me.aal !== "aal2") throw new HttpError(403, "Approving money needs your second sign-in step. Confirm with your authenticator app.");
+}
+// Making a CLI or API key is as strong as signing in, so it needs the authenticator step too when one is set up.
+export async function requireStrongSession(me: Caller) {
+  if (me.via !== "session") throw new HttpError(403, "Do this from the web app.");
+  if (me.aal !== "aal2" && (await hasAuthenticator(me.userId))) throw new HttpError(403, "Confirm with your authenticator app first (Settings → Security).");
+}
+
 // Guards for a route.
 export const requireWrite = (me: Caller) => {
   if (me.scope === "read") throw new HttpError(403, "This token is read-only.");

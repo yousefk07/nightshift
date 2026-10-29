@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { sessionClient } from "@/lib/auth";
 import { readState } from "@/lib/crypto";
 import { accountDetails, exchangeCode, isOAuthProvider, OAUTH, redirectUri } from "@/lib/connectors/oauth";
 import { supabaseStore } from "@/lib/store-supabase";
@@ -13,9 +14,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   if (!isOAuthProvider(provider)) return back("connect_error=unknown");
   if (url.searchParams.get("error")) return back(`connect_error=${encodeURIComponent(url.searchParams.get("error")!)}`);
   try {
-    const state = readState<{ ws: string; p: string; r?: string }>(url.searchParams.get("state") ?? "");
+    const state = readState<{ ws: string; u: string; p: string; r?: string }>(url.searchParams.get("state") ?? "");
     if (state.r?.startsWith("/") && !state.r.startsWith("//")) returnTo = state.r;
     if (state.p !== provider) throw new Error("Mixed-up sign-in");
+    // a connect link only works for the person who started it, in their own browser (no saving someone else's
+    // mailbox into your workspace by sending them your link)
+    const { data: who } = await (await sessionClient()).auth.getUser();
+    if (!who.user || who.user.id !== state.u) throw new Error("Open Nightshift, sign in, and start connecting from Settings → Connections.");
     const t = await exchangeCode(provider, url.searchParams.get("code") ?? "", redirectUri(req, provider));
     if (!t.refresh_token) throw new Error("No offline access was granted");
     const { account, extra } = await accountDetails(provider, t, url.searchParams);

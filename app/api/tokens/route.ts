@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, HttpError, route } from "@/lib/auth";
+import { body, HttpError, route, requireStrongSession } from "@/lib/auth";
 import { newToken, sha256 } from "@/lib/crypto";
 import { admin } from "@/lib/store-supabase";
 
@@ -11,7 +11,7 @@ export const GET = route(async (_req, me) => {
 });
 
 export const POST = route(async (req, me) => {
-  if (me.via !== "session") throw new HttpError(403, "Make CLI tokens from the web app.");
+  await requireStrongSession(me);
   const { name, scope } = await body(req, (v) => z.object({ name: z.string().min(1).max(40).default("API key"), scope: z.enum(["full", "read"]).default("read") }).parse(v ?? {}));
   const token = newToken();
   const { error } = await admin().from("api_tokens").insert({ workspace_id: me.ws.id, user_id: me.userId, name, scope, token_hash: sha256(token) });

@@ -29,7 +29,8 @@ export default function SignIn() {
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     queueMicrotask(() => {
-      if (q.get("next")?.startsWith("/")) setNext(q.get("next")!);
+      const n = q.get("next");
+      if (n && /^\/(?![\/\\])/.test(n)) setNext(n); // a path on this site, never //other.site or /\other.site
       if (q.get("expired") || /expired|invalid/i.test(q.get("error_description") ?? "")) setState("expired");
       if (q.get("new")) setIsNew(true);
     });

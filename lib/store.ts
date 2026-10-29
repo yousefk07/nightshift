@@ -33,6 +33,10 @@ export interface Store {
   createAction(a: Pick<Action, "workspace_id" | "bot_id" | "run_id" | "thread_id" | "tool" | "risk" | "title" | "payload"> & Partial<Pick<Action, "counterparty" | "amount_cents" | "currency" | "group_key">>): Promise<Action>;
   action(ws: string, id: string): Promise<Action | null>;
   updateAction(id: string, patch: Partial<Action>): Promise<void>;
+  // only if the card is still in one of `from`; false when someone (or the tick) got there first
+  moveAction(id: string, from: Action["status"][], patch: Partial<Action>): Promise<boolean>;
+  // runs left "running" and cards left "executing" since before `before` (a crashed tick): marked failed
+  reapStuck(before: Date): Promise<{ runs: number; actions: number }>;
   actions(ws: string, status?: Action["status"] | Action["status"][]): Promise<Action[]>;
   claimDueActions(limit: number): Promise<Action[]>;
 

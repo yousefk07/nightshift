@@ -153,6 +153,17 @@ export function supabaseStore(db = admin()): Store {
     async updateAction(id, patch) {
       await q(db.from("actions").update(patch).eq("id", id));
     },
+    async moveAction(id, from, patch) {
+      const rows = await q<{ id: string }[]>(db.from("actions").update(patch).eq("id", id).in("status", from).select("id"));
+      return rows.length > 0;
+    },
+    async reapStuck(before) {
+      const at = before.toISOString();
+      const runs = await q<{ id: string }[]>(db.from("runs").update({ status: "failed", error: "Stopped partway (the shift ran out of time). It will run again on schedule.", finished_at: new Date().toISOString() }).eq("status", "running").lt("started_at", at).select("id"));
+      // never retried automatically: a half-done send or invoice needs a person to look
+      const actions = await q<{ id: string }[]>(db.from("actions").update({ status: "failed", error: "Interrupted while going out. Check whether it arrived before trying again." }).eq("status", "executing").lt("send_after", at).select("id"));
+      return { runs: runs.length, actions: actions.length };
+    },
     async actions(ws, status) {
       let query = db.from("actions").select("*").eq("workspace_id", ws).order("created_at").limit(200);
       if (Array.isArray(status)) query = query.in("status", status);

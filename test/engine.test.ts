@@ -73,6 +73,33 @@ describe("approvals", () => {
     expect(db.actions.map((x) => x.status)).toEqual(["pending", "rejected"]);
   });
 
+  it("once the tick has picked a card up, undo can't bring it back (no double send); double decisions are refused", async () => {
+    const { store, ws, db } = memStore({ conns: [google] });
+    const s = services();
+    fakeDeepSeek([sendTurn(), { text: "Queued." }], s.handler);
+    await chatWithBot(store, ws, "inbox", "reply to Lena");
+    const [a] = db.actions;
+    await approveAction(store, ws, a.id, owner);
+    await expect(approveAction(store, ws, a.id, owner)).rejects.toThrow(/already sending/);
+    db.actions[0].status = "executing"; // the tick claimed it a moment ago
+    await expect(undoAction(store, ws, a.id, "owner-1")).rejects.toThrow(/going out|executing/);
+    expect(db.actions[0].status).toBe("executing");
+  });
+
+  it("a tick keeps going past a bot whose template is gone, and reaps work a crashed tick left behind", async () => {
+    const { store, db } = memStore();
+    const past = new Date(Date.now() - 60_000).toISOString();
+    db.bots[0].kind = "no_such_template";
+    db.bots[0].next_run_at = past;
+    db.bots[1].next_run_at = past;
+    db.runs.push({ id: "stuck", workspace_id: db.bots[1].workspace_id, bot_id: db.bots[1].id, trigger: "schedule", status: "running", input: "", started_at: new Date(Date.now() - 3_600_000).toISOString() } as never);
+    fakeDeepSeek([{ text: "All quiet." }, { text: "All quiet." }, { text: "All quiet." }]);
+    const done = await tick(store);
+    expect(done.some((d) => d.trigger === "schedule")).toBe(true); // the next bot still ran
+    expect(db.bots[0].next_run_at).toBeNull(); // the broken one is off the schedule
+    expect(db.runs.find((r) => r.id === "stuck")?.status).toBe("failed");
+  });
+
   it("'auto' bots send email on their own, but money still waits", async () => {
     const { store, ws, db } = memStore({ conns: [google, stripe] });
     db.bots.find((b) => b.kind === "inbox")!.approval = "auto";

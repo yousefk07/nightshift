@@ -106,6 +106,19 @@ export function memStore(opts: { budget?: number; conns?: Partial<Connection>[];
     },
     action: async (_ws, id) => db.actions.find((a) => a.id === id) ?? null,
     updateAction: async (id, patch) => void Object.assign(db.actions.find((a) => a.id === id)!, patch),
+    moveAction: async (id, from, patch) => {
+      const a = db.actions.find((x) => x.id === id);
+      if (!a || !from.includes(a.status)) return false;
+      Object.assign(a, patch);
+      return true;
+    },
+    reapStuck: async (before) => {
+      const runs = db.runs.filter((r) => { const s = (r as Run & { started_at?: string }).started_at; return r.status === "running" && !!s && new Date(s) < before; });
+      runs.forEach((r) => Object.assign(r, { status: "failed", error: "Stopped partway" }));
+      const actions = db.actions.filter((a) => a.status === "executing" && a.send_after && new Date(a.send_after) < before);
+      actions.forEach((a) => Object.assign(a, { status: "failed", error: "Interrupted" }));
+      return { runs: runs.length, actions: actions.length };
+    },
     actions: async (_ws, status) => db.actions.filter((a) => !status || (Array.isArray(status) ? status.includes(a.status) : a.status === status)),
     claimDueActions: async (limit) => {
       const due = db.actions.filter((a) => a.status === "sending" && a.send_after && new Date(a.send_after) <= new Date()).slice(0, limit);
