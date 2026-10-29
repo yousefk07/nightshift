@@ -35,7 +35,7 @@ export interface Reply {
 }
 
 export const model = (tier: Tier) =>
-  tier === "pro" ? process.env.DEEPSEEK_MODEL_PRO || "deepseek-v4-pro" : process.env.DEEPSEEK_MODEL_FLASH || "deepseek-v4.1-flash";
+  tier === "pro" ? process.env.DEEPSEEK_MODEL_PRO || "deepseek-v4-pro" : process.env.DEEPSEEK_MODEL_FLASH || "deepseek-flash";
 
 // US$ per million tokens at peak (weekdays 01:00-04:00 and 06:00-10:00 UTC); everything else is half price.
 // Same figures as yAI (lib/handlers.js); override with DEEPSEEK_PRICE_<TIER>_<IN|CACHED|OUT> if DeepSeek changes them.

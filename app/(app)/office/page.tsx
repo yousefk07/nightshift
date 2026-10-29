@@ -21,9 +21,12 @@ export default function OfficePage() {
     <>
       <BrokenBanner />
       <div className="ns-office-desktop" style={{ flex: 1, display: "flex", minHeight: 0, height: "calc(100vh - 59px)" }}>
-        <div style={{ position: "relative", flex: 1, overflow: "auto", background: "#5a4238" }}>
+        {/* the room runs edge to edge (wall, rail, floorboards); the desks sit centred in it */}
+        <div style={{ position: "relative", flex: 1, overflow: "auto", background: "linear-gradient(#3b2f47 0 200px, #2c2236 200px 214px, transparent 214px), repeating-linear-gradient(90deg, transparent 0 56px, #372b42 56px 60px) 0 0 / 100% 200px no-repeat, repeating-linear-gradient(0deg, transparent 0 40px, #4f3a31 40px 44px), #5a4238" }}>
           {quiet && <QuietOffice onStart={() => { startBot("inbox", () => refreshOffice()).finally(refreshOffice); setTimeout(refreshOffice, 800); }} />}
-          <OfficeFloor desks={desks} waiting={me.waiting} selected={selected} onSelect={(id) => setSelected(selected === id ? null : id)} />
+          <div style={{ display: "flex", justifyContent: "center", minWidth: "min-content" }}>
+            <OfficeFloor desks={desks} waiting={me.waiting} selected={selected} onSelect={(id) => setSelected(selected === id ? null : id)} />
+          </div>
         </div>
         {selected === "me" ? <DeskPanel onClose={() => setSelected(null)} /> : desk ? <BotPanel key={desk.id} desk={desk} onClose={() => setSelected(null)} /> : null}
       </div>

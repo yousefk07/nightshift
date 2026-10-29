@@ -188,7 +188,7 @@ describe("tools, budget, memory", () => {
       (url) => (url.includes("tavily") ? { results: [{ title: "Shelves", url: "https://example.test", content: "Larkspur $12" }] } : null),
     );
     const r = await chatWithBot(store, ws, "research", "best kiln shelf supplier?");
-    expect(ds.requests.map((q) => q.model)).toEqual(["deepseek-v4.1-flash", "deepseek-v4.1-flash", "deepseek-v4-pro"]);
+    expect(ds.requests.map((q) => q.model)).toEqual(["deepseek-flash", "deepseek-flash", "deepseek-v4-pro"]);
     expect(r.result.text).toContain("Larkspur");
     expect(db.runs[0].searches).toBe(1);
   });
