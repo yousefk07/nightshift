@@ -1,49 +1,57 @@
+/* Nightshift's look, from the Claude Design file: warm paper outside, a dark pixel office inside. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* paper (public pages, settings, panels) */
+  --paper: #faf6ef;
+  --paper-2: #f4efe7;
+  --canvas: #e6ded3;
+  --card: #ffffff;
+  --line: #e4d9cb;
+  --line-2: #d5c7b6;
+  --ink: #2b2320;
+  --ink-2: #4a3f38;
+  --muted: #6d6056;
+  --faint: #857769;
+  --accent: #b46a22;
+  --amber: #d48a3c;
+  --gold: #f0c27a;
+  --good: #4f8a5b;
+  --bad: #b94a3a;
+
+  /* the night office */
+  --night: #221a24;
+  --night-2: #17111a;
+  --night-3: #2d2330;
+  --night-ink: #f1e6d6;
+  --night-muted: #a89a8c;
+  --outline: #2a1f2b;
+
+  --radius: 10px;
+  --shadow: 0 30px 60px -30px rgba(40, 25, 20, 0.45);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html {
-  height: 100%;
-}
-
-html,
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans), "Instrument Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
+a { color: var(--accent); }
+a:hover { color: var(--ink); }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, [role="button"]:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+textarea::placeholder, input::placeholder { color: var(--faint); }
+code, pre, .mono { font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace; }
+.pixel { font-family: var(--font-pixel), "Pixelify Sans", monospace; }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
-}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@keyframes ns-bob { 0% { transform: translateY(0); } 100% { transform: translateY(2px); } }
+@keyframes ns-tap { 0% { transform: translateY(0); } 100% { transform: translateY(-6px); } }
+@keyframes ns-wave { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(12deg); } }
+@keyframes ns-steam { 0% { opacity: 0; transform: translateY(0); } 40% { opacity: 0.8; } 100% { opacity: 0; transform: translateY(-16px); } }
+@keyframes ns-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes ns-toast { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }

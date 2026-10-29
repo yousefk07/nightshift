@@ -23,7 +23,8 @@ export const GET = route<Ctx>(async (req, me, { params }) => {
   if (!isOAuthProvider(provider)) throw new HttpError(404, "Use POST for Stripe, Shopify, HubSpot and Google Sheets.");
   if (!OAUTH[provider].clientId()) throw new HttpError(500, `${OAUTH[provider].label} sign-in isn't set up on the server yet.`);
   if (provider === "google" || provider === "microsoft") await inboxRoom(me.ws.id, me.ws);
-  const state = signState({ ws: me.ws.id, u: me.userId, p: provider });
+  const back = new URL(req.url).searchParams.get("return");
+  const state = signState({ ws: me.ws.id, u: me.userId, p: provider, r: back?.startsWith("/") && !back.startsWith("//") ? back : "/settings/connections" });
   return Response.redirect(authorizeUrl(provider, redirectUri(req, provider), state), 302);
 });
 

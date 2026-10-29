@@ -1,0 +1,22 @@
+{
+  "name": "Nightshift",
+  "short_name": "Nightshift",
+  "start_url": "/office",
+  "display": "standalone",
+  "background_color": "#221a24",
+  "theme_color": "#221a24",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

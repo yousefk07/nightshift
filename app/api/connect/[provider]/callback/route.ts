@@ -8,11 +8,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   await connection();
   const { provider } = await params;
   const url = new URL(req.url);
-  const back = (q: string) => Response.redirect(`${process.env.APP_URL ?? url.origin}/settings/connections?${q}`, 302);
+  let returnTo = "/settings/connections";
+  const back = (q: string) => Response.redirect(`${process.env.APP_URL ?? url.origin}${returnTo}?${q}`, 302);
   if (!isOAuthProvider(provider)) return back("connect_error=unknown");
   if (url.searchParams.get("error")) return back(`connect_error=${encodeURIComponent(url.searchParams.get("error")!)}`);
   try {
-    const state = readState<{ ws: string; p: string }>(url.searchParams.get("state") ?? "");
+    const state = readState<{ ws: string; p: string; r?: string }>(url.searchParams.get("state") ?? "");
+    if (state.r?.startsWith("/") && !state.r.startsWith("//")) returnTo = state.r;
     if (state.p !== provider) throw new Error("Mixed-up sign-in");
     const t = await exchangeCode(provider, url.searchParams.get("code") ?? "", redirectUri(req, provider));
     if (!t.refresh_token) throw new Error("No offline access was granted");
