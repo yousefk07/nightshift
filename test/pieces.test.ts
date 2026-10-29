@@ -148,3 +148,19 @@ describe("accounting", () => {
     expect(await books.listInvoices("overdue")).toHaveLength(1);
   });
 });
+
+describe("connections", () => {
+  it("two refreshes at once: the loser uses the winner's fresh token instead of calling the connection broken", async () => {
+    process.env.MICROSOFT_CLIENT_ID = "id"; process.env.MICROSOFT_CLIENT_SECRET = "secret";
+    const { accessToken } = await import("../lib/connectors/oauth");
+    const { store, db } = memStore({ conns: [{ provider: "microsoft", kinds: ["email", "calendar"], account: "me@outlook.test", secret: { access_token: "old", refresh_token: "r1", expires_at: Date.now() - 1000 } }] });
+    const conn = db.conns[0];
+    vi.stubGlobal("fetch", async () => {
+      // meanwhile another request refreshed and saved: r1 is spent
+      conn.secret = { access_token: "fresh", refresh_token: "r2", expires_at: Date.now() + 3_600_000 };
+      return new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 });
+    });
+    expect(await accessToken(store, { ...conn, secret: { ...(conn.secret as object) } } as never)).toBe("fresh");
+    expect(conn.status).toBe("ok");
+  });
+});

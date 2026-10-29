@@ -22,6 +22,8 @@ const shop = (ctx: ToolCtx) => {
   if (!c) throw new Error("No store is connected.");
   return c;
 };
+// a real amount of money: a finite number above zero and under a million
+const money = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n > 0 && n < 1_000_000;
 const emailsIn = (s: string) => (s.match(/[^\s<>,;"']+@[^\s<>,;"']+\.[a-z]{2,}/gi) ?? []).map((e) => e.toLowerCase());
 const domainOf = (email: string) => email.split("@")[1] ?? "";
 
@@ -418,6 +420,18 @@ const createInvoice = defineTool<{ customer: string; email?: string; lines: { de
   ),
   risk: "money",
   needs: ["accounting"],
+  check: (a) => {
+    if (!a.customer?.trim()) return "The invoice needs a customer.";
+    if (!Array.isArray(a.lines) || !a.lines.length) return "The invoice needs at least one line.";
+    for (const l of a.lines) {
+      if (!l?.description?.trim()) return "Every line needs a description.";
+      if (!money(l.amount)) return `"${l.description}" needs a price above zero.`;
+      if (l.quantity != null && !(Number.isFinite(l.quantity) && l.quantity > 0 && l.quantity <= 10_000)) return `"${l.description}" has an odd quantity (${l.quantity}).`;
+    }
+    if (a.due_in_days != null && !(Number.isInteger(a.due_in_days) && a.due_in_days >= 0 && a.due_in_days <= 365)) return "Days until due should be 0 to 365.";
+    if (a.currency != null && !/^[A-Za-z]{3}$/.test(a.currency)) return `"${a.currency}" isn't a currency code.`;
+    return null;
+  },
   card: (a) => ({ title: `Invoice to ${a.customer}`, counterparty: a.customer, amount_cents: Math.round(a.lines.reduce((s, l) => s + l.amount * (l.quantity ?? 1), 0) * 100), currency: a.currency }),
   async run(ctx, a) {
     const r = await books(ctx).createInvoice({ customer: a.customer, email: a.email, lines: a.lines, dueInDays: a.due_in_days, currency: a.currency, memo: a.memo });
@@ -432,6 +446,13 @@ const createCreditNote = defineTool<{ invoice_id: string; amount: number; reason
   parameters: obj({ invoice_id: str("The invoice"), amount: { type: "number", description: "How much to credit" }, reason: str("Why, as it should read on the note"), customer: str("Who, for the approval card"), currency: str("Currency"), group: str("Key tying related cards together") }, ["invoice_id", "amount", "reason"]),
   risk: "money",
   needs: ["accounting"],
+  check: (a) => (!a.invoice_id?.trim() ? "Say which invoice." : !money(a.amount) ? "A credit note needs an amount above zero." : !a.reason?.trim() ? "Say why, as it should read on the note." : null),
+  // never more than the invoice was for
+  guard: async (ctx, a) => {
+    const inv = await books(ctx).getInvoice(a.invoice_id).catch(() => null);
+    if (!inv) return `Invoice ${a.invoice_id} wasn't found in the books.`;
+    return a.amount > inv.total + 0.005 ? `A credit of ${a.amount} is more than invoice ${inv.number ?? a.invoice_id} was for (${inv.total}).` : null;
+  },
   card: (a) => ({ title: `Credit note → ${a.customer ?? "invoice " + a.invoice_id}`, counterparty: a.customer, amount_cents: Math.round(a.amount * 100), currency: a.currency }),
   async run(ctx, a) {
     const n = await ctx.store.nextCounter(ctx.ws.id, "credit_note");

@@ -83,7 +83,16 @@ export async function approveAction(store: Store, ws: Workspace, id: string, who
   if (a.status !== "pending") throw new ApprovalError(`This was already ${a.status}.`, 409);
   if (!canApprove(who.role, a)) throw new ApprovalError(a.risk === "money" ? "Only owners and approvers can approve money." : "Your role can't approve this.", 403);
   const send_after = new Date(now.getTime() + UNDO_SECONDS * 1000).toISOString();
-  if (!(await store.moveAction(a.id, ["pending"], { status: "sending", send_after, payload: editedPayload ?? a.payload, decided_by: who.userId, decided_at: now.toISOString() }))) throw new ApprovalError("Someone just decided this one.", 409);
+  // an edit is checked like the bot's draft was, and the card's title and amount follow it
+  let edits: Partial<Action> = {};
+  if (editedPayload) {
+    const tool = toolByName(a.tool);
+    const wrong = tool?.check?.(editedPayload);
+    if (wrong) throw new ApprovalError(wrong, 400);
+    const card = tool?.card?.(editedPayload);
+    if (card) edits = { title: card.title, counterparty: card.counterparty ?? a.counterparty, amount_cents: card.amount_cents ?? a.amount_cents, currency: card.currency ?? a.currency };
+  }
+  if (!(await store.moveAction(a.id, ["pending"], { status: "sending", send_after, payload: editedPayload ?? a.payload, decided_by: who.userId, decided_at: now.toISOString(), ...edits }))) throw new ApprovalError("Someone just decided this one.", 409);
   await store.log(ws.id, { actor_type: "user", actor_id: who.userId, action: "approved", target: a.title, data: { action_id: a.id, edited: !!editedPayload } });
   return { status: "sending" as const, undo_until: send_after };
 }
@@ -137,7 +146,7 @@ export async function executeAction(store: Store, ws: Workspace, a: Action) {
   }
   const conns = await store.connections(ws.id);
   const ctx = { store, ws, bot, run: null, conns, usage: { searches: 0 }, emit: () => {} };
-  const refused = tool.guard ? await tool.guard(ctx, a.payload) : null;
+  const refused = tool.check?.(a.payload) ?? (tool.guard ? await tool.guard(ctx, a.payload) : null);
   const time = new Date().toLocaleTimeString("en-US", { timeZone: ws.timezone, hour: "numeric", minute: "2-digit" });
   try {
     if (refused) throw new Error(refused);

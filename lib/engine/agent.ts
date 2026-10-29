@@ -206,6 +206,11 @@ async function callTool(ctx: ToolCtx, tool: Tool | undefined, name: string, rawA
   }
   ctx.emit({ type: "tool", name, args });
 
+  const wrong = tool.check?.(args);
+  if (wrong) {
+    ctx.emit({ type: "tool_result", name, ok: false });
+    return { error: `${wrong} Fix the arguments and try again.` };
+  }
   if (tool.guard) {
     const refused = await tool.guard(ctx, args);
     if (refused) {

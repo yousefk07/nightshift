@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { body, HttpError, route, requireStrongSession } from "@/lib/auth";
 import { newToken, sha256 } from "@/lib/crypto";
+import { limits } from "@/lib/plans";
 import { admin } from "@/lib/store-supabase";
 
 // API keys and CLI devices ("Key or device / Scope / Last used / Revoke"). Made from a signed-in browser session
@@ -13,6 +14,8 @@ export const GET = route(async (_req, me) => {
 export const POST = route(async (req, me) => {
   await requireStrongSession(me);
   const { name, scope } = await body(req, (v) => z.object({ name: z.string().min(1).max(40).default("API key"), scope: z.enum(["full", "read"]).default("read") }).parse(v ?? {}));
+  // the pricing table: full-access API keys are part of Team; read-only ones (to try things) and the CLI work on every plan
+  if (scope === "full" && !limits(me.ws).api) throw new HttpError(403, "Full-access API keys come with the Team plan. Read-only keys and the CLI (nightshift login) work on every plan.");
   const token = newToken();
   const { error } = await admin().from("api_tokens").insert({ workspace_id: me.ws.id, user_id: me.userId, name, scope, token_hash: sha256(token) });
   if (error) throw new Error(error.message);

@@ -132,6 +132,23 @@ export async function accessToken(store: Store, conn: Connection): Promise<strin
     await store.saveConnection(conn.workspace_id, conn.provider, conn.kinds, conn.account, next);
     return t.access_token;
   } catch (e) {
+    // Microsoft, Xero and QuickBooks hand out a new refresh token each time, so two refreshes at once leave one
+    // holding a used token. If someone else just refreshed, use theirs instead of calling the connection broken.
+    const now = (await store.connections(conn.workspace_id).catch(() => [])).find((c) => c.id === conn.id);
+    const theirs = now?.secret as typeof s | undefined;
+    if (theirs?.access_token && theirs.access_token !== s.access_token && theirs.expires_at > Date.now() + 30_000) {
+      conn.secret = theirs;
+      return theirs.access_token;
+    }
+    if (theirs?.refresh_token && theirs.refresh_token !== s.refresh_token) {
+      try {
+        const t = await tokenRequest(o, { grant_type: "refresh_token", refresh_token: theirs.refresh_token });
+        const next = { ...theirs, access_token: t.access_token, refresh_token: t.refresh_token || theirs.refresh_token, expires_at: expiry(t) };
+        conn.secret = next;
+        await store.saveConnection(conn.workspace_id, conn.provider, conn.kinds, conn.account, next);
+        return t.access_token;
+      } catch { /* really broken: fall through */ }
+    }
     await store.markConnection(conn.id, { status: "needs_signin", error: (e as Error).message });
     conn.status = "needs_signin";
     throw new Error(`${o.label} needs to be reconnected: ${(e as Error).message}`);

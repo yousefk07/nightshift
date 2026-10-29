@@ -18,6 +18,7 @@ function services() {
     if (url.includes("/messages/send")) return sent.push(JSON.parse(String(init?.body))), { id: `sent-${sent.length}` };
     if (url.includes("/messages/m1")) return { id: "m1", threadId: "t1", snippet: "Can you confirm Thursday?", payload: { mimeType: "text/plain", headers: [{ name: "From", value: "Lena <lena@ortiz.test>" }, { name: "Subject", value: "Thursday" }, { name: "Message-ID", value: "<abc@ortiz.test>" }] } };
     if (url.includes("api.stripe.com/v1/credit_notes")) return credits.push(String(init?.body)), { id: "cn_1", number: "CN-0107" };
+    if (url.includes("api.stripe.com/v1/invoices/in_1042")) return { id: "in_1042", number: "1042", customer_name: "Acme Hotels", customer_email: "ap@acme.test", total: 248000, amount_due: 0, currency: "usd", status: "paid", due_date: null, created: 1_790_000_000, lines: { data: [] } };
     throw new Error(`unexpected ${url}`);
   };
   return { sent, credits, handler };
@@ -111,6 +112,23 @@ describe("approvals", () => {
     await chatWithBot(store, ws, "invoices", "Fix the Acme double charge");
     expect(s.credits).toHaveLength(0);
     expect(db.actions[0]).toMatchObject({ tool: "create_credit_note", risk: "money", amount_cents: 124000, counterparty: "Acme Hotels", group_key: "acme-1042" });
+  });
+
+  it("money is checked: bad amounts never become cards, an edit is re-checked and the card follows it, a credit can't exceed its invoice", async () => {
+    const { store, ws, db } = memStore({ conns: [stripe] });
+    const s = services();
+    fakeDeepSeek([
+      { tools: [{ name: "create_invoice", args: { customer: "Acme", lines: [{ description: "Glaze workshop", amount: -50 }] } }] },
+      { tools: [{ name: "create_credit_note", args: { invoice_id: "in_1042", amount: 9999, reason: "Billed twice", customer: "Acme Hotels" } }] },
+      { tools: [{ name: "create_credit_note", args: { invoice_id: "in_1042", amount: 1240, reason: "Billed twice", customer: "Acme Hotels" } }] },
+      { text: "One credit note waiting." },
+    ], s.handler);
+    await chatWithBot(store, ws, "invoices", "Bill Acme and fix the double charge");
+    expect(db.actions).toHaveLength(1); // the negative invoice and the oversized credit never became cards
+    const [a] = db.actions;
+    await expect(approveAction(store, ws, a.id, owner, { ...a.payload, amount: 0 })).rejects.toThrow(/above zero/);
+    await approveAction(store, ws, a.id, owner, { ...a.payload, amount: 620 });
+    expect(db.actions[0]).toMatchObject({ status: "sending", amount_cents: 62000 }); // the card follows the edit
   });
 
   it("roles: email-only approvers can't approve money, viewers can't approve anything", () => {

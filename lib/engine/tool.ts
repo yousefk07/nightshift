@@ -30,6 +30,9 @@ export interface Tool<A = Record<string, unknown>> {
   card?: (args: A) => { title: string; counterparty?: string; amount_cents?: number; currency?: string };
   // Checked before an outward tool is queued or run (do-not-contact, holds, the weekly cap). A string = refused, with why.
   guard?: (ctx: ToolCtx, args: A) => Promise<string | null>;
+  // The arguments themselves (amounts, lines, currency), no lookups: before a card is made, when the owner edits it
+  // at approval, and before it runs. A string = what's wrong.
+  check?: (args: A) => string | null;
   run: (ctx: ToolCtx, args: A) => Promise<unknown>;
 }
 
