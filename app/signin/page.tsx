@@ -15,6 +15,15 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [next, setNext] = useState("/office");
   const [isNew, setIsNew] = useState(false);
+  // Google / Microsoft buttons show only once those providers are switched on in Supabase Auth.
+  const [providers, setProviders] = useState<{ google: boolean; azure: boolean }>({ google: false, azure: false });
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! } })
+      .then((r) => r.json())
+      .then((j) => setProviders({ google: !!j.external?.google, azure: !!j.external?.azure }))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const q = new URLSearchParams(location.search);
@@ -53,9 +62,9 @@ export default function SignIn() {
               <p style={{ margin: 0, color: "var(--muted)", fontSize: 16 }}>{isNew ? "14 days of Studio, free. No card needed." : "Your team kept things running while you were away."}</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 380 }}>
-              <Button kind="outline" size="lg" onClick={() => oauth("google")} style={{ background: "#fff" }}>Continue with Google</Button>
-              <Button kind="outline" size="lg" onClick={() => oauth("azure")} style={{ background: "#fff" }}>Continue with Microsoft</Button>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--faint)", fontSize: 13, margin: "6px 0" }}><span style={{ flex: 1, height: 1, background: "var(--line)" }} />or<span style={{ flex: 1, height: 1, background: "var(--line)" }} /></div>
+              {providers.google && <Button kind="outline" size="lg" onClick={() => oauth("google")} style={{ background: "#fff" }}>Continue with Google</Button>}
+              {providers.azure && <Button kind="outline" size="lg" onClick={() => oauth("azure")} style={{ background: "#fff" }}>Continue with Microsoft</Button>}
+              {(providers.google || providers.azure) && <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--faint)", fontSize: 13, margin: "6px 0" }}><span style={{ flex: 1, height: 1, background: "var(--line)" }} />or<span style={{ flex: 1, height: 1, background: "var(--line)" }} /></div>}
               <form onSubmit={(e) => { e.preventDefault(); sendLink(); }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <label style={{ fontSize: 13.5, fontWeight: 600 }}>Work email
                   <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourbusiness.com" style={{ marginTop: 6 }} />
