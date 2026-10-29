@@ -374,3 +374,22 @@ describe("changing industry", () => {
     expect(db.bots.find((b) => b.kind === "inbox")!.name).toBe(botDef("inbox", "dental_general").name); // cast to cast
   });
 });
+
+describe("trial cap", () => {
+  it("with TRIAL_BUDGET_USD=0 a trial runs nothing: no scheduled runs, and a chat says trials are paused without calling the model", async () => {
+    process.env.TRIAL_BUDGET_USD = "0";
+    try {
+      const { store, ws, db } = memStore({ conns: [google] });
+      db.bots[0].next_run_at = new Date(Date.now() - 1000).toISOString();
+      const ds = fakeDeepSeek([{ text: "hi" }]);
+      expect(await tick(store)).toEqual([]);
+      const r = await chatWithBot(store, ws, "inbox", "anything new?");
+      expect(ds.requests).toHaveLength(0);
+      expect(JSON.stringify(r)).toMatch(/trials are paused/i);
+      ws.plan = "solo"; // a paid plan is never held back
+      expect(await tick(store)).not.toEqual([]);
+    } finally {
+      delete process.env.TRIAL_BUDGET_USD;
+    }
+  });
+});

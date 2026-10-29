@@ -1,6 +1,7 @@
 import { botDef, CASTS, chipsFor, starters, taskFor, teamLabel, TEMPLATES, type BotTemplate, type Industry } from "../bots";
 import { CORE_IDS } from "../bots/casts";
 import type { Store } from "../store";
+import { trialPaused } from "../plans";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
 import { historyToChat, missingNeeds, runBot, settleStatus, type RunResult } from "./agent";
@@ -223,7 +224,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
     return workspaces.get(id)!;
   };
   // nothing runs until onboarding is done, or once the workspace is deleted, canceled or past its trial
-  const active = (ws: Workspace) => !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
+  const active = (ws: Workspace) => !trialPaused(ws) && !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
 
   await store.reapStuck(new Date(now.getTime() - 15 * 60_000));
   await executeDue(store);

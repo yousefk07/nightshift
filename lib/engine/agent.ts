@@ -2,6 +2,7 @@ import { addUsage, chat, cost, noUsage, type ChatMessage, type Tier, type Usage 
 import type { Store } from "../store";
 import type { Bot, Connection, Message, Run, Workspace } from "../types";
 import { botDef, type BotTemplate } from "../bots";
+import { dailyBudget, trialPaused } from "../plans";
 import { toolsFor } from "../tools";
 import { localDate } from "./schedule";
 import type { EngineEvent, Tool, ToolCtx } from "./tool";
@@ -104,10 +105,16 @@ export async function runBot(
 
   await store.updateRun(run.id, { status: "running", model: def.tier, started_at: new Date().toISOString() });
   await setStatus(ctx, "working", "Thinking it through");
-  const overBudget = async () => (await store.usageToday(ws.id, day)) + spent >= Number(ws.daily_budget_usd);
+  const overBudget = async () => (await store.usageToday(ws.id, day)) + spent >= dailyBudget(ws);
 
   try {
-    for (let step = 0; step < MAX_STEPS; step++) {
+    if (trialPaused(ws)) {
+      // free trials are switched off for now: say so plainly, without calling the model
+      status = "stopped";
+      text = "Free trials are paused for now, so I can't start yet. Pick a plan in Settings → Plan & billing and I'll get to work right away.";
+      emit({ type: "stopped", reason: "budget" });
+    }
+    for (let step = 0; step < MAX_STEPS && !trialPaused(ws); step++) {
       if (await overBudget()) {
         status = "stopped";
         text ||= "Paused: today's budget is used up. I'll pick this up on my next shift.";

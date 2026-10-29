@@ -20,3 +20,12 @@ export function isActive(ws: Pick<Workspace, "plan" | "trial_ends_at" | "deleted
 }
 
 export const planOf = (p: Plan) => (p === "trial" ? "Studio trial" : p === "canceled" ? "Canceled" : PLANS[p].label);
+
+// Today's model + search spending cap. Trials are also held to TRIAL_BUDGET_USD (0 = trials can't run the bots:
+// the team starts the moment a plan is picked); paid plans and staff use the workspace's own cap.
+export const trialCap = () => {
+  const raw = process.env.TRIAL_BUDGET_USD?.trim();
+  return raw && Number.isFinite(Number(raw)) ? Number(raw) : 3;
+};
+export const dailyBudget = (ws: Pick<Workspace, "plan" | "daily_budget_usd">) => (ws.plan === "trial" ? Math.min(Number(ws.daily_budget_usd), trialCap()) : Number(ws.daily_budget_usd));
+export const trialPaused = (ws: Pick<Workspace, "plan" | "daily_budget_usd">) => ws.plan === "trial" && dailyBudget(ws) <= 0;

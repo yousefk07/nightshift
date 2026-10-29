@@ -1,6 +1,6 @@
 import { route } from "@/lib/auth";
 import { localDate } from "@/lib/engine/schedule";
-import { isActive, limits, planOf } from "@/lib/plans";
+import { isActive, limits, planOf, trialPaused } from "@/lib/plans";
 import { admin, supabaseStore } from "@/lib/store-supabase";
 
 // Everything the app needs on load: who you are, the workspace, the plan, what's connected, today's spend.
@@ -18,7 +18,7 @@ export const GET = route(async (_req, me) => {
   return Response.json({
     user: { id: me.userId, email: me.email, role: me.role, two_step: me.aal === "aal2", ...profile.data },
     workspace: ws,
-    plan: { name: planOf(me.ws.plan), active: isActive(me.ws), limits: limits(me.ws), trial_ends_at: me.ws.plan === "trial" ? me.ws.trial_ends_at : null },
+    plan: { name: planOf(me.ws.plan), active: isActive(me.ws), trial_paused: trialPaused(me.ws), limits: limits(me.ws), trial_ends_at: me.ws.plan === "trial" ? me.ws.trial_ends_at : null },
     connections: conns,
     search: !!process.env.TAVILY_API_KEY,
     waiting: pending,

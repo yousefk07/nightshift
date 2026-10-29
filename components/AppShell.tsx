@@ -12,7 +12,7 @@ import { NeedDot } from "./pixel";
 export interface Me {
   user: { id: string; email: string; role: "owner" | "approver" | "approver_email" | "viewer"; full_name?: string; avatar_url?: string | null; two_step: boolean };
   workspace: { id: string; name: string; timezone: string; industry: string; onboarded_at: string | null; onboarding_step: number; brief_prefs: { time: string; days: number[]; length: string; channels: string[] }; shift_start: string; guardrails: Record<string, boolean>; plan: string; trial_ends_at: string; deleted_at: string | null };
-  plan: { name: string; active: boolean; limits: { bots: number; seats: number; inboxes: number; researchHours: number; room: boolean; logDays: number | null; api: boolean }; trial_ends_at: string | null };
+  plan: { name: string; active: boolean; trial_paused?: boolean; limits: { bots: number; seats: number; inboxes: number; researchHours: number; room: boolean; logDays: number | null; api: boolean }; trial_ends_at: string | null };
   connections: { id: string; provider: string; kinds: string[]; account: string; status: string; broken_at?: string | null; last_synced_at?: string | null }[];
   waiting: number;
   unread_notifications: number;
@@ -168,6 +168,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             {me.data.user.role === "owner" && (
               <button onClick={() => api("/api/workspace", { json: { restore: true } }).then(me.refresh)} style={{ background: "#fff", color: "var(--bad)", border: 0, borderRadius: 6, padding: "4px 10px", fontWeight: 700, cursor: "pointer" }}>Restore it</button>
             )}
+          </div>
+        ) : me.data.plan.trial_paused ? (
+          <div role="status" style={{ flex: "none", background: "var(--gold)", color: "var(--outline)", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            Free trials are paused for now, so the team is waiting at their desks. They start the moment you pick a plan. <Link href="/settings/billing" style={{ color: "var(--outline)", fontWeight: 700 }}>Pick a plan</Link>
           </div>
         ) : !me.data.plan.active && (
           <div role="alert" style={{ flex: "none", background: "var(--bad)", color: "#fff", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
