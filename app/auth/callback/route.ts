@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   // ?code= links only work in the browser that asked for them
   const tokenHash = url.searchParams.get("token_hash");
   if (tokenHash) {
-    const type = (url.searchParams.get("type") ?? "email") as "email" | "magiclink" | "signup" | "invite" | "recovery";
+    const type = (url.searchParams.get("type") ?? "email") as "email" | "magiclink" | "signup" | "invite" | "recovery" | "email_change";
     const { error } = await (await sessionClient()).auth.verifyOtp({ token_hash: tokenHash, type });
     if (error) return Response.redirect(`${url.origin}/signin?expired=1`, 302);
   } else if (code) {
