@@ -87,7 +87,7 @@ describe("approvals", () => {
   });
 
   it("a tick keeps going past a bot whose template is gone, and reaps work a crashed tick left behind", async () => {
-    const { store, db } = memStore();
+    const { store, db } = memStore({ conns: [google, stripe] });
     const past = new Date(Date.now() - 60_000).toISOString();
     db.bots[0].kind = "no_such_template";
     db.bots[0].next_run_at = past;
@@ -221,7 +221,7 @@ describe("tools, budget, memory", () => {
   });
 
   it("a failing DeepSeek call fails the run cleanly", async () => {
-    const { store, ws, db } = memStore();
+    const { store, ws, db } = memStore({ conns: [google] });
     process.env.DEEPSEEK_API_KEY = "test";
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ error: { message: "Insufficient balance" } }), { status: 402 }));
     const bot = db.bots[0];
@@ -258,7 +258,7 @@ describe("the team", () => {
   });
 
   it("the tick runs due bots once and moves their schedule on", async () => {
-    const { store, ws, db } = memStore();
+    const { store, ws, db } = memStore({ conns: [stripe] });
     db.bots.forEach((b) => (b.next_run_at = null));
     const ledger = db.bots.find((b) => b.kind === "invoices")!;
     ledger.next_run_at = new Date(Date.now() - 1000).toISOString();
@@ -268,6 +268,17 @@ describe("the team", () => {
     expect(new Date(ledger.next_run_at!).getTime()).toBeGreaterThan(now.getTime());
     expect(await tick(store, { now })).toEqual([]);
     void ws;
+  });
+
+  it("a bot missing a connection it needs waits, shown as stuck, instead of running on nothing", async () => {
+    const { store, db } = memStore(); // no email connected
+    db.bots.forEach((b) => (b.next_run_at = null));
+    const penny = db.bots.find((b) => b.kind === "inbox")!;
+    penny.next_run_at = new Date(Date.now() - 1000).toISOString();
+    const ds = fakeDeepSeek([{ text: "I have no email tools." }]);
+    expect(await tick(store)).toEqual([]);
+    expect(ds.requests).toHaveLength(0);
+    expect(penny).toMatchObject({ status: "blocked", status_text: "Needs email connected" });
   });
 
   it("nothing runs after the trial ends", async () => {

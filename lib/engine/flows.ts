@@ -2,7 +2,7 @@ import { botDef, starters, taskFor, TEMPLATES, type BotTemplate, type Industry }
 import type { Store } from "../store";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
-import { historyToChat, runBot, settleStatus, type RunResult } from "./agent";
+import { historyToChat, missingNeeds, runBot, settleStatus, type RunResult } from "./agent";
 import { localDate, nextRun } from "./schedule";
 import type { EngineEvent } from "./tool";
 
@@ -207,6 +207,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
   const deadline = Date.now() + (opts.deadlineMs ?? 240_000);
   const done: { bot: string; trigger: string; status: string }[] = [];
   const workspaces = new Map<string, Workspace>();
+  const connsOf = new Map<string, Awaited<ReturnType<Store["connections"]>>>();
   const wsOf = async (id: string) => {
     if (!workspaces.has(id)) workspaces.set(id, await store.workspace(id));
     return workspaces.get(id)!;
@@ -263,6 +264,12 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
     }
     const ws = await wsOf(bot.workspace_id);
     if (!active(ws)) continue;
+    // a bot missing a connection it can't work without waits (shown as stuck) instead of spending a run on nothing
+    if (!connsOf.has(ws.id)) connsOf.set(ws.id, await store.connections(ws.id));
+    if (missingNeeds(def, connsOf.get(ws.id)!).length) {
+      if (bot.status !== "blocked") await settleStatus(store, ws, bot);
+      continue;
+    }
     // Move the schedule on first, so an overlapping tick never runs the same bot twice.
     const next = nextRun(def.schedule, ws.timezone, now)?.toISOString() ?? null;
     await store.updateBot(bot.id, { next_run_at: next });

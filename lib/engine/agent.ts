@@ -1,7 +1,7 @@
 import { addUsage, chat, cost, noUsage, type ChatMessage, type Tier, type Usage } from "../deepseek";
 import type { Store } from "../store";
-import type { Bot, Message, Run, Workspace } from "../types";
-import { botDef } from "../bots";
+import type { Bot, Connection, Message, Run, Workspace } from "../types";
+import { botDef, type BotTemplate } from "../bots";
 import { toolsFor } from "../tools";
 import { localDate } from "./schedule";
 import type { EngineEvent, Tool, ToolCtx } from "./tool";
@@ -164,8 +164,12 @@ export async function runBot(
   return { text, status, actions, usage, costUsd: spent };
 }
 
-// After a run (or a decision): needs you if cards are waiting, blocked if a connection it needs is broken,
-// failed if the run failed, otherwise idle until its next shift.
+// The connections a bot can't work without that aren't there yet (web search is built in).
+export const missingNeeds = (def: Pick<BotTemplate, "needs">, conns: Pick<Connection, "kinds">[]) =>
+  (def.needs as string[]).filter((n) => n !== "web" && !conns.some((c) => (c.kinds as string[]).includes(n)));
+
+// After a run (or a decision): needs you if cards are waiting, blocked if a connection it needs is broken or
+// missing, failed if the run failed, otherwise idle until its next shift.
 export async function settleStatus(store: Store, ws: Workspace, bot: Bot, emit: (e: EngineEvent) => void = () => {}, failure: string | null = null) {
   const [pending, conns] = await Promise.all([store.actions(ws.id, "pending"), store.connections(ws.id)]);
   const mine = pending.filter((a) => a.bot_id === bot.id).length;
@@ -176,6 +180,11 @@ export async function settleStatus(store: Store, ws: Workspace, bot: Bot, emit: 
   if (broken) {
     await store.updateBot(bot.id, { blocked_reason: `${broken.provider} connection lost` });
     return setStatus(ctx, "blocked", `Blocked: ${broken.provider} connection lost`);
+  }
+  const missing = missingNeeds(def, conns);
+  if (missing.length) {
+    await store.updateBot(bot.id, { blocked_reason: `needs ${missing.join(" and ")}` });
+    return setStatus(ctx, "blocked", `Needs ${missing.join(" and ")} connected`);
   }
   if (bot.blocked_reason) await store.updateBot(bot.id, { blocked_reason: null });
   if (mine) return setStatus(ctx, "needs_you", `${mine} ${mine === 1 ? "draft" : "drafts"} for you`);
