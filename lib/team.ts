@@ -4,6 +4,7 @@ import { layout, sendMail } from "./email";
 import { limits } from "./plans";
 import type { Store } from "./store";
 import { admin } from "./store-supabase";
+import { exactly } from "./like";
 import type { Role } from "./types";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -24,7 +25,7 @@ export async function inviteMember(store: Store, me: Caller, email: string, role
   if (role !== "viewer" && used >= limits(me.ws).seats) throw new HttpError(402, `All ${limits(me.ws).seats} seats are used. Add a seat to invite another approver.`);
 
   const token = newToken();
-  await db.from("invites").delete().eq("workspace_id", me.ws.id).ilike("email", email).is("accepted_at", null);
+  await db.from("invites").delete().eq("workspace_id", me.ws.id).ilike("email", exactly(email)).is("accepted_at", null);
   const { error } = await db.from("invites").insert({ workspace_id: me.ws.id, email: email.toLowerCase(), role, token_hash: sha256(token), invited_by: me.userId });
   if (error) throw new Error(error.message);
 

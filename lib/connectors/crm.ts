@@ -62,14 +62,18 @@ export function rowsToContacts(rows: string[][]) {
       const email = at(r, "email").toLowerCase();
       const when = at(r, "last_touch_at");
       const parsed = when ? new Date(when) : null;
+      // only the cells that have something in them: a blank cell or a missing column keeps what's already known
+      // (a new contact still starts as a lead: that's the column default)
+      const name = at(r, "name") || [at(r, "first"), at(r, "last")].filter(Boolean).join(" ");
+      const tags = at(r, "tags") ? at(r, "tags").split(/[,;]/).map((t) => t.trim()).filter(Boolean) : [];
       return {
         email,
-        name: at(r, "name") || [at(r, "first"), at(r, "last")].filter(Boolean).join(" "),
-        phone: at(r, "phone") || null,
-        company: at(r, "company") || null,
-        stage: at(r, "stage").toLowerCase() || "lead",
-        notes: at(r, "notes"),
-        tags: at(r, "tags") ? at(r, "tags").split(/[,;]/).map((t) => t.trim()).filter(Boolean) : [],
+        ...(name ? { name } : {}),
+        ...(at(r, "phone") ? { phone: at(r, "phone") } : {}),
+        ...(at(r, "company") ? { company: at(r, "company") } : {}),
+        ...(at(r, "stage") ? { stage: at(r, "stage").toLowerCase() } : {}),
+        ...(at(r, "notes") ? { notes: at(r, "notes") } : {}),
+        ...(tags.length ? { tags } : {}),
         ...(parsed && !isNaN(+parsed) ? { last_touch_at: parsed.toISOString() } : {}),
       };
     })

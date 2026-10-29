@@ -261,8 +261,13 @@ const sendEmail = defineTool<{ to: string; subject: string; body: string; reply_
   needs: ["email"],
   card: (a) => ({ title: `Email to ${a.to}: "${a.subject}"`, counterparty: a.company ?? a.to }),
   guard: (ctx, a) => {
+    // a line break in a header could smuggle in a Bcc the checks below never see
+    if (/[\r\n]/.test(a.to) || /[\r\n]/.test(a.subject)) return Promise.resolve("The recipient or subject has a line break in it.");
+    const parts = a.to.split(/[,;]/).map((p) => p.trim()).filter(Boolean);
+    const plain = (p: string) => /^(?:[^<>@,;:"]*<)?[^\s<>@,;:"]+@[^\s<>@,;:"]+\.[a-z]{2,}>?$/i.test(p); // "a@b.co" or "Name <a@b.co>"
     const to = emailsIn(a.to);
-    return to.length ? outreachGuard(ctx, to, { kind: outreachKind(ctx), company: a.company }) : Promise.resolve("There's no valid recipient address.");
+    if (!parts.length || !parts.every(plain)) return Promise.resolve("There's no valid recipient address (use plain addresses, comma separated).");
+    return outreachGuard(ctx, to, { kind: outreachKind(ctx), company: a.company });
   },
   async run(ctx, a) {
     const r = await mail(ctx).send({ to: a.to, subject: a.subject, body: a.body, replyToId: a.reply_to_id });

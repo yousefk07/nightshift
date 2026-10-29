@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { sha256 } from "./crypto";
+import { exactly } from "./like";
 import { isStaff } from "./staff";
 import { defaultBots } from "./engine/flows";
 import { admin, supabaseStore } from "./store-supabase";
@@ -90,7 +91,7 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
   const m = (await membership(userId, wanted)) ?? (wanted ? await membership(userId) : null); // a stale pick falls back
   if (m) return { ws: await store.workspace(m.workspace_id), role: m.role };
 
-  const { data: invite } = await db.from("invites").select("id, workspace_id, role").ilike("email", email).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: invite } = await db.from("invites").select("id, workspace_id, role").ilike("email", exactly(email)).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (invite) {
     await db.from("members").upsert({ workspace_id: invite.workspace_id, user_id: userId, role: invite.role });
     await db.from("invites").update({ accepted_at: new Date().toISOString() }).eq("id", invite.id);

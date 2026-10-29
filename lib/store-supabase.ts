@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { decrypt, encrypt } from "./crypto";
 import type { Store } from "./store";
+import { exactly } from "./like";
 import type { Action, Bot, Brief, Connection, Contact, Doc, Flag, Hold, Member, Memory, Message, Run, Thread, Workspace } from "./types";
 
 // The production Store. Runs on the server with the service key; every query is scoped to a workspace here,
@@ -212,7 +213,7 @@ export function supabaseStore(db = admin()): Store {
       const patch = { ...c, updated_at: now() } as Record<string, unknown>;
       if ("id" in c && c.id) return q<Contact>(db.from("contacts").update(patch).eq("workspace_id", ws).eq("id", c.id).select().single());
       if (c.email) {
-        const existing = await q<Contact | null>(db.from("contacts").select("*").eq("workspace_id", ws).ilike("email", c.email).maybeSingle());
+        const existing = await q<Contact | null>(db.from("contacts").select("*").eq("workspace_id", ws).ilike("email", exactly(c.email)).limit(1).maybeSingle());
         if (existing) return q<Contact>(db.from("contacts").update(patch).eq("id", existing.id).select().single());
       }
       return q<Contact>(db.from("contacts").insert({ workspace_id: ws, ...patch }).select().single());
@@ -231,7 +232,7 @@ export function supabaseStore(db = admin()): Store {
     },
     async addTouch(ws, email, botId, channel = "email") {
       await q(db.from("touches").insert({ workspace_id: ws, email: email.toLowerCase(), bot_id: botId, channel }));
-      await db.from("contacts").update({ last_touch_at: now() }).eq("workspace_id", ws).ilike("email", email);
+      await db.from("contacts").update({ last_touch_at: now() }).eq("workspace_id", ws).ilike("email", exactly(email));
     },
 
     // ---- memory and documents ----

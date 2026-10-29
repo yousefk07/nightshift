@@ -62,6 +62,26 @@ describe("contacts import", () => {
     expect(rowsToContacts(rows)).toHaveLength(1); // the row without an email is skipped
     expect(sheetId("https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit#gid=0")).toBe("1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789");
   });
+
+  it("a sheet with blank cells or missing columns never wipes what's known", () => {
+    const [c] = rowsToContacts(parseCsv("Email,Name,Stage,Notes\nlena@ortiz.test,,,\n"));
+    expect(c).toEqual({ email: "lena@ortiz.test" }); // no stage reset to "lead", no empty notes
+  });
+
+  it("email matching is exact: _ and % aren't wildcards", async () => {
+    const { exactly } = await import("../lib/like");
+    expect(exactly("a_b%c@x.com")).toBe("a\\_b\\%c@x.com");
+  });
+
+  it("send_email refuses line breaks in headers and anything that isn't a plain address", async () => {
+    const { toolByName } = await import("../lib/tools");
+    const { store, ws, db } = memStore();
+    const ctx = { store, ws, bot: db.bots[0], run: null, conns: [], usage: { searches: 0 }, emit: () => {} } as never;
+    const guard = toolByName("send_email")!.guard!;
+    expect(await guard(ctx, { to: "lena@ortiz.test\r\nBcc: z@evil.test", subject: "Hi", body: "x" })).toMatch(/line break/);
+    expect(await guard(ctx, { to: "lena@ortiz.test, Bcc:z@evil.test bob", subject: "Hi", body: "x" })).toMatch(/valid recipient/);
+    expect(await guard(ctx, { to: "lena@ortiz.test", subject: "Hi", body: "x" })).toBeNull();
+  });
 });
 
 describe("billing", () => {
