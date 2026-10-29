@@ -12,6 +12,11 @@ export class ApiError extends Error {
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; json?: unknown; body?: BodyInit; headers?: Record<string, string> } = {}): Promise<T> {
+  // local showcase (dev server only): made-up data instead of the API, for screenshots. Dead code in production.
+  if (process.env.NODE_ENV === "development") {
+    const { showcaseOn, showcaseAnswer } = await import("./showcase");
+    if (showcaseOn()) return showcaseAnswer(path, opts.method ?? (opts.json !== undefined || opts.body ? "POST" : "GET")) as T;
+  }
   const res = await fetch(path, {
     method: opts.method ?? (opts.json !== undefined || opts.body ? "POST" : "GET"),
     headers: { ...(opts.json !== undefined ? { "Content-Type": "application/json" } : {}), ...opts.headers },
@@ -63,6 +68,7 @@ export function useLive(onEvent: (e: StreamEvent) => void) {
   const handler = useRef(onEvent);
   useEffect(() => { handler.current = onEvent; }, [onEvent]);
   useEffect(() => {
+    if (process.env.NODE_ENV === "development" && sessionStorage.getItem("ns-showcase") === "1") return; // showcase: nothing live
     const es = new EventSource("/api/stream");
     const on = (type: StreamEvent["type"]) => (e: MessageEvent) => {
       try { handler.current({ type, data: JSON.parse(e.data) }); } catch {}

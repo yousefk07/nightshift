@@ -23,7 +23,7 @@ export interface DeskInfo {
   status: "idle" | "working" | "needs_you" | "blocked" | "failed" | "paused"; status_text: string; waiting: number; next_run_at: string | null; approval: "ask" | "auto"; enabled: boolean;
   chips?: string[] | null; // chat suggestions in the industry's words
 }
-export interface Office { working: number; needs_you: string[]; blocked: { name: string; why: string }[]; waiting_total: number; desks: DeskInfo[]; team: string | null; names: Record<string, string> }
+export interface Office { working: number; needs_you: string[]; blocked: { name: string; why: string }[]; waiting_total: number; desks: DeskInfo[]; team: string | null; names: Record<string, string | null> }
 
 interface Ctx {
   me: Me;
@@ -43,10 +43,17 @@ export const useApp = () => {
 // Copy that names a default bot ("So Penny can read your mail") in this business's own names ("So Mirela can…").
 // Works outside the app shell too (onboarding passes the names it has).
 const DEFAULT_OF: Record<string, string> = { Penny: "inbox", Sage: "research", Ledger: "invoices", Nudge: "leads", Dawn: "brief" };
-export function useRename(names?: Record<string, string>) {
+export function useRename(names?: Record<string, string | null>) {
   const c = useContext(AppCtx);
   const map = names ?? c?.office?.names;
-  return useCallback((text: string) => (map ? text.replace(/\b(Penny|Sage|Ledger|Nudge|Dawn)\b/g, (n) => map[DEFAULT_OF[n]] ?? n) : text), [map]);
+  return useCallback((text: string) => {
+    if (!map) return text;
+    return text.replace(/\b(Penny|Sage|Ledger|Nudge|Dawn)\b/g, (n, _m, at: number) => {
+      const name = map[DEFAULT_OF[n]];
+      if (name) return name;
+      return at === 0 || /[.!?]\s*$/.test(text.slice(0, at)) ? "Your team" : "your team"; // a job nobody here does
+    });
+  }, [map]);
 }
 
 const TABS = [
@@ -132,7 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/office" style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--night-ink)", textDecoration: "none" }}>
               <Logo tone="dark" size={18} />
             </Link>
-            <span style={{ color: "#a99ba1", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me.data.workspace.name}{o?.team && <span className="ns-hide-sm" style={{ color: "#7f7078" }}> · your {o.team}</span>}</span>
+            <span className="ns-hide-sm" style={{ color: "#a99ba1", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me.data.workspace.name}{o?.team && <span className="ns-hide-sm" style={{ color: "#7f7078" }}> · your {o.team}</span>}</span>
           </div>
           <nav className="ns-tabs" style={{ display: "flex", gap: 4, background: "#2d2330", padding: 4, borderRadius: 10, fontSize: 13.5 }}>
             {TABS.map((t) => (
@@ -145,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Clock tz={tz} />
             {o && <span className="ns-hide-sm">{o.working} working</span>}
             {needs.length > 0 && (
-              <Link href="/desk" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--gold)", textDecoration: "none" }}>
+              <Link href="/desk" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--gold)", textDecoration: "none", whiteSpace: "nowrap" }}>
                 <NeedDot /> {needs.length === 1 ? `${needs[0]} needs you` : `${needs.length} bots need you`}
               </Link>
             )}

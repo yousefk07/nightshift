@@ -352,7 +352,8 @@ export async function officeView(store: Store, ws: Workspace) {
     blocked: desks.filter((d) => d.status === "blocked").map((d) => ({ name: d.name, why: d.status_text })),
     waiting_total: pending.length,
     team: teamLabel(ws.industry), // "dental front office"
-    names: Object.fromEntries(["inbox", "research", "invoices", "leads", "brief"].map((id) => [id, botDef(id, ws.industry).name])), // the cast, hired or not
+    // the team's own names for the core jobs it has (copy that mentions a job nobody here does says "your team")
+    names: Object.fromEntries(["inbox", "research", "invoices", "leads", "brief"].map((id) => [id, bots.find((b) => b.kind === id)?.name ?? null])),
     desks,
   };
 }

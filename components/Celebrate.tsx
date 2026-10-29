@@ -23,7 +23,7 @@ export function Celebrate({ title, line, team, onClose, cta = "Let's go" }: { ti
   const crew = team.slice(0, 7);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={title} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "radial-gradient(900px 600px at 50% 40%, rgba(60,40,70,.88), rgba(18,12,20,.94))", display: "grid", placeItems: "center", padding: 16, overflow: "hidden" }}>
+    <div role="dialog" aria-modal="true" aria-label={title} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "radial-gradient(900px 600px at 50% 40%, rgba(58,40,68,.97), rgba(18,12,20,.99))", display: "grid", placeItems: "center", padding: 16, overflow: "hidden" }}>
       {PIECES.map((p, i) => (
         <span key={i} aria-hidden style={{ position: "absolute", top: 0, left: `${p.left}%`, width: p.size, height: p.size, background: p.color, animation: `ns-confetti ${p.dur}s ${p.delay}s cubic-bezier(.3,.6,.5,1) forwards`, opacity: 0, ["--dx" as string]: `${p.dx}px`, ["--spin" as string]: `${p.spin}deg` }} />
       ))}

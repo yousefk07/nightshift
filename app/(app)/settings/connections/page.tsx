@@ -44,7 +44,7 @@ export default function ConnectionsPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 16, fontWeight: 700 }}>{k.label}</span>
                   {mine.length > 0 && <Pill tone={healthy ? "green" : "red"}>{healthy ? "Connected" : "Needs attention"}</Pill>}
-                  {!mine.length && needed.length > 0 && <Pill tone="amber">{needed.join(" and ")} {needed.length > 1 ? "need" : "needs"} this</Pill>}
+                  {!mine.length && needed.length > 0 && <Pill tone="amber">{needed.length > 1 ? `${needed.slice(0, -1).join(", ")} and ${needed[needed.length - 1]}` : needed[0]} {needed.length > 1 ? "need" : "needs"} this</Pill>}
                 </div>
                 <div style={{ fontSize: 13, color: "#776a5e", marginTop: 3 }}>{rename(k.why)}</div>
               </div>

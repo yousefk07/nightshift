@@ -1,0 +1,1199 @@
+{
+ "me": {
+  "user": {
+   "id": "showcase-user",
+   "email": "jordan@maplestreetdental.example",
+   "role": "owner",
+   "full_name": "Jordan Lee",
+   "two_step": true
+  },
+  "workspace": {
+   "id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+   "name": "Maple Street Dental",
+   "about": "A family dental practice with three chairs.",
+   "industry": "dental_general",
+   "team_size": "2–5 people",
+   "pain_points": [],
+   "timezone": "America/Toronto",
+   "shift_start": "19:00:00",
+   "region": "us",
+   "onboarding_step": 5,
+   "onboarded_at": "2026-10-29T20:35:47.722Z",
+   "guardrails": {
+    "pause_on_dispute": true,
+    "weekly_cap": true
+   },
+   "brief_prefs": {
+    "time": "06:30",
+    "days": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "length": "short",
+    "channels": [
+     "app",
+     "email"
+    ]
+   },
+   "daily_budget_usd": 2,
+   "plan": "trial",
+   "plan_interval": null,
+   "trial_ends_at": "2026-11-12T20:35:47.722Z",
+   "extra_seats": 0,
+   "stripe_customer_id": null,
+   "stripe_subscription_id": null,
+   "current_period_end": null,
+   "billing_email": null,
+   "deleted_at": null,
+   "created_at": "2026-10-29T20:35:47.723Z"
+  },
+  "plan": {
+   "name": "Studio trial",
+   "active": true,
+   "limits": {
+    "label": "Studio",
+    "month": 89,
+    "bots": 10,
+    "seats": 2,
+    "inboxes": 3,
+    "researchHours": 100,
+    "room": true,
+    "logDays": 365,
+    "api": false
+   },
+   "trial_ends_at": "2026-11-12T20:35:47.722Z"
+  },
+  "connections": [
+   {
+    "id": "4e898d65-40e4-4edd-8f5e-5859cf3cfe1b",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "account": "frontdesk@maplestreetdental.example",
+    "kinds": [
+     "email",
+     "calendar"
+    ],
+    "status": "ok",
+    "provider": "google",
+    "last_synced_at": "2026-10-29T20:31:47.720Z"
+   },
+   {
+    "id": "ccb592e7-62e9-4c77-93c5-559882aea6ae",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "account": "Maple Street Dental",
+    "kinds": [
+     "accounting"
+    ],
+    "status": "ok",
+    "provider": "quickbooks",
+    "last_synced_at": "2026-10-29T20:09:47.721Z"
+   }
+  ],
+  "search": true,
+  "waiting": 3,
+  "open_flags": 1,
+  "unread_notifications": 2,
+  "spent_today_usd": 0.41
+ },
+ "office": {
+  "working": 2,
+  "needs_you": [
+   "Mirela",
+   "Rosa"
+  ],
+  "blocked": [],
+  "waiting_total": 3,
+  "team": "dental front office",
+  "names": {
+   "inbox": "Mirela",
+   "research": "Theo",
+   "invoices": "Rosa",
+   "leads": null,
+   "brief": "Juno"
+  },
+  "desks": [
+   {
+    "id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "kind": "inbox",
+    "name": "Mirela",
+    "role": "Front desk",
+    "title": "Answers patients, books appointments and flags tooth pain, swelling or a broken crown the moment it lands",
+    "hue": 65,
+    "prop": "papers",
+    "chips": [
+     "Anything urgent from patients?",
+     "Draft replies to what's flagged"
+    ],
+    "status": "needs_you",
+    "status_text": "2 drafts for you",
+    "waiting": 2,
+    "next_run_at": "2026-10-29T20:50:47.722Z",
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+    "kind": "invoices",
+    "name": "Rosa",
+    "role": "Billing",
+    "title": "Keeps insurance claims and treatment-plan balances moving, and chases what's late (politely)",
+    "hue": 140,
+    "prop": "coins",
+    "chips": [
+     "Who still owes us?",
+     "Anything overdue this week?"
+    ],
+    "status": "needs_you",
+    "status_text": "1 draft for you",
+    "waiting": 1,
+    "next_run_at": "2026-10-30T05:00:00.000Z",
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "abb631ba-187c-417d-8305-7ff7d74dd107",
+    "kind": "brief",
+    "name": "Juno",
+    "role": "Morning huddle",
+    "title": "Your morning huddle every morning: what needs you, today's chairs and what the team did overnight",
+    "hue": 95,
+    "prop": "plant",
+    "chips": [
+     "What happened overnight?",
+     "What needs me today?"
+    ],
+    "status": "idle",
+    "status_text": "",
+    "waiting": 0,
+    "next_run_at": null,
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "ab241903-b2b9-4bbe-9803-a19b10dd21f7",
+    "kind": "dental_general.recall",
+    "name": "Molly",
+    "role": "Recall",
+    "title": "Brings patients back for their six-month cleanings and exams",
+    "hue": 200,
+    "prop": "calendar",
+    "chips": null,
+    "status": "working",
+    "status_text": "Writing recall reminders for 14 patients",
+    "waiting": 0,
+    "next_run_at": "2026-10-30T11:30:00.000Z",
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "5b568f23-5de4-4458-a659-d93dbf3e5599",
+    "kind": "dental_general.cancel_fill",
+    "name": "Gus",
+    "role": "Chair filler",
+    "title": "Fills last-minute dental cancellations from the short-notice list",
+    "hue": 260,
+    "prop": "phone",
+    "chips": null,
+    "status": "idle",
+    "status_text": "",
+    "waiting": 0,
+    "next_run_at": "2026-10-29T21:25:47.745Z",
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "8de15133-49a0-43e2-ae02-1d07d0626cc4",
+    "kind": "research",
+    "name": "Theo",
+    "role": "Research",
+    "title": "Looks into labs, suppliers and nearby practices, and answers the questions you never get to",
+    "hue": 185,
+    "prop": "books",
+    "chips": [
+     "What are competitors charging?",
+     "Look into labs"
+    ],
+    "status": "working",
+    "status_text": "Comparing clear-aligner prices nearby",
+    "waiting": 0,
+    "next_run_at": null,
+    "approval": "ask",
+    "enabled": true
+   },
+   {
+    "id": "5b9cc033-943c-44be-9892-7004413092cf",
+    "kind": "dental_general.postop",
+    "name": "Wren",
+    "role": "After-visit check",
+    "title": "Checks in the day after extractions, implants and other procedures",
+    "hue": 175,
+    "prop": "plant",
+    "chips": null,
+    "status": "idle",
+    "status_text": "",
+    "waiting": 0,
+    "next_run_at": "2026-10-29T23:35:47.745Z",
+    "approval": "ask",
+    "enabled": true
+   }
+  ]
+ },
+ "desk": {
+  "date": "2026-10-29",
+  "brief": {
+   "for_date": "2026-10-29",
+   "status": "final",
+   "headline": "Three things need you before 9.",
+   "delivered_at": null,
+   "content": "Three things need you before 9.\n\n**Needs you**\n- Lena Chen: swelling after an extraction, same-day slot drafted (11:30)\n- Anika Patel: reschedule + an $85 credit for a double charge, approve both together\n\n**Today's chairs**\n- 11 patients, first at 8:00; one open slot at 2:40 (Gus is on it)\n\n**What the team did**\n- Mirela sorted 23 emails; Rosa matched 3 insurance payments; Molly found 14 patients due for recall\n\n**Good to know**\n- Theo is pricing clear aligners in the area; results by noon",
+   "updated_at": "2026-10-29T20:35:47.762Z"
+  },
+  "minutes": 2,
+  "queue": [
+   {
+    "n": 1,
+    "id": "a775b5b0-e5f4-417c-b8c3-7feab8c37b1f",
+    "bot": "Mirela",
+    "title": "Email to l.chen@example.com: \"Re: Swelling after Tuesday's extraction\"",
+    "risk": "message",
+    "counterparty": "Lena Chen",
+    "amount_cents": null,
+    "currency": null
+   },
+   {
+    "n": 2,
+    "id": "60b6ceaf-0f8b-463b-be0e-cfb9847de005",
+    "bot": "Mirela",
+    "title": "Email to anika.patel@example.com: \"Re: Moving Thursday's cleaning\"",
+    "risk": "message",
+    "counterparty": "Anika Patel",
+    "amount_cents": null,
+    "currency": null
+   },
+   {
+    "n": 3,
+    "id": "0c7a3d85-3935-4e08-83f2-a7c51be7bf8c",
+    "bot": "Rosa",
+    "title": "Credit note → Anika Patel",
+    "risk": "money",
+    "counterparty": "Anika Patel",
+    "amount_cents": 8500,
+    "currency": "USD"
+   }
+  ],
+  "groups": [
+   {
+    "bot": "Mirela",
+    "key": null,
+    "items": [
+     {
+      "counterparty": "Lena Chen",
+      "amount_cents": null,
+      "currency": null,
+      "group_key": null,
+      "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+      "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+      "run_id": null,
+      "thread_id": null,
+      "tool": "send_email",
+      "risk": "message",
+      "title": "Email to l.chen@example.com: \"Re: Swelling after Tuesday's extraction\"",
+      "payload": {
+       "to": "l.chen@example.com",
+       "subject": "Re: Swelling after Tuesday's extraction",
+       "body": "Hi Lena,\n\nThanks for letting us know. Some swelling is normal for a few days, but we'd like to take a look. Dr. Shah has an opening today at 11:30. Does that work?\n\nIf the pain gets worse or you get a fever before then, call us right away at (416) 555-0142.\n\nMaple Street Dental"
+      },
+      "id": "a775b5b0-e5f4-417c-b8c3-7feab8c37b1f",
+      "status": "pending",
+      "send_after": null,
+      "result": null,
+      "error": null,
+      "created_at": "2026-10-29T20:35:47.747Z"
+     }
+    ]
+   },
+   {
+    "bot": "Mirela",
+    "key": "patel",
+    "items": [
+     {
+      "counterparty": "Anika Patel",
+      "amount_cents": null,
+      "currency": null,
+      "group_key": "patel",
+      "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+      "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+      "run_id": null,
+      "thread_id": null,
+      "tool": "send_email",
+      "risk": "message",
+      "title": "Email to anika.patel@example.com: \"Re: Moving Thursday's cleaning\"",
+      "payload": {
+       "to": "anika.patel@example.com",
+       "subject": "Re: Moving Thursday's cleaning",
+       "body": "Hi Anika,\n\nNo problem at all. We can move your cleaning to Monday at 4:15 or Wednesday at 9:00. Just reply with the one you'd like and it's yours.\n\nMaple Street Dental"
+      },
+      "id": "60b6ceaf-0f8b-463b-be0e-cfb9847de005",
+      "status": "pending",
+      "send_after": null,
+      "result": null,
+      "error": null,
+      "created_at": "2026-10-29T20:35:47.748Z"
+     }
+    ]
+   },
+   {
+    "bot": "Rosa",
+    "key": "patel",
+    "items": [
+     {
+      "counterparty": "Anika Patel",
+      "amount_cents": 8500,
+      "currency": "USD",
+      "group_key": "patel",
+      "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+      "bot_id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+      "run_id": null,
+      "thread_id": null,
+      "tool": "create_credit_note",
+      "risk": "money",
+      "title": "Credit note → Anika Patel",
+      "payload": {
+       "invoice_id": "2231",
+       "amount": 85,
+       "reason": "March cleaning was charged twice",
+       "customer": "Anika Patel"
+      },
+      "id": "0c7a3d85-3935-4e08-83f2-a7c51be7bf8c",
+      "status": "pending",
+      "send_after": null,
+      "result": null,
+      "error": null,
+      "created_at": "2026-10-29T20:35:47.749Z"
+     }
+    ]
+   }
+  ]
+ },
+ "room": {
+  "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+  "messages": [
+   {
+    "kind": "event",
+    "bot_id": null,
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "system",
+    "content": "Wren (After-visit check) joined the team.",
+    "id": "9259f321-aa77-4af8-bcb8-63e6e13330f9",
+    "created_at": "2026-10-29T20:35:47.751Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "**Overnight inbox:** 23 emails since 7 PM.\n- **Urgent:** Lena Chen has swelling two days after her extraction. I drafted a same-day slot at 11:30 and flagged it for you.\n- **Reschedule:** Anika Patel wants to move Thursday's cleaning; two times offered, waiting for your OK.\n- Filed 14 newsletters and supplier promos, 3 insurance remittances to **Billing**.",
+    "id": "916e71b2-a2f0-401c-a427-fc87f5fd8d69",
+    "created_at": "2026-10-29T20:35:47.752Z"
+   },
+   {
+    "kind": "handoff",
+    "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "user_id": null,
+    "run_id": null,
+    "data": {
+     "to_bot": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+     "title": "Patel double charge"
+    },
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "@Rosa Anika Patel says her March cleaning was charged twice (invoice 2231). Can you check before I reply?",
+    "id": "76353013-8ff2-4e63-910d-9c1690814d5d",
+    "created_at": "2026-10-29T20:35:47.753Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "Checked QuickBooks: invoice 2231 was paid twice on Mar 12, once by card and once through her insurance. A **credit note for $85.00** is waiting for your OK, grouped with Mirela's reply so you can approve both at once.",
+    "id": "90a53d99-4eb1-4876-939e-5a2c98e7d326",
+    "created_at": "2026-10-29T20:35:47.754Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": null,
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "owner",
+    "content": "@Theo what are clear aligners going for around here?",
+    "id": "a5b3105d-fd71-4927-8102-0b0b8c88551a",
+    "created_at": "2026-10-29T20:35:47.755Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "8de15133-49a0-43e2-ae02-1d07d0626cc4",
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "On it. Comparing six practices within 10 km, their listed prices and what's included (refinements, retainers). I'll post a short table here.",
+    "id": "e810cc60-a709-4e9e-9b03-7e96a17809fe",
+    "created_at": "2026-10-29T20:35:47.756Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "ab241903-b2b9-4bbe-9803-a19b10dd21f7",
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "**Recall list:** 14 patients are due for a cleaning this month and haven't booked. I'm drafting friendly reminders; they'll come to you as one batch to approve.",
+    "id": "f32c1337-74e0-48d5-969e-688adbaf7349",
+    "created_at": "2026-10-29T20:35:47.757Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "abb631ba-187c-417d-8305-7ff7d74dd107",
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "11921fb7-3f14-4989-80e7-df55e4a93d23",
+    "role": "bot",
+    "content": "Your morning huddle is ready: **3 things need you**, 11 patients in today's chairs, and one open slot at 2:40 that Gus is trying to fill.",
+    "id": "90c1e3cd-782d-470d-b50f-0574f8651bb0",
+    "created_at": "2026-10-29T20:35:47.758Z"
+   }
+  ],
+  "in_the_room": [
+   {
+    "id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "kind": "inbox",
+    "name": "Mirela",
+    "status": "needs_you",
+    "status_text": "2 drafts for you",
+    "next_run_at": "2026-10-29T20:50:47.722Z"
+   },
+   {
+    "id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+    "kind": "invoices",
+    "name": "Rosa",
+    "status": "needs_you",
+    "status_text": "1 draft for you",
+    "next_run_at": "2026-10-30T05:00:00.000Z"
+   },
+   {
+    "id": "abb631ba-187c-417d-8305-7ff7d74dd107",
+    "kind": "brief",
+    "name": "Juno",
+    "status": "idle",
+    "status_text": "",
+    "next_run_at": null
+   },
+   {
+    "id": "ab241903-b2b9-4bbe-9803-a19b10dd21f7",
+    "kind": "dental_general.recall",
+    "name": "Molly",
+    "status": "working",
+    "status_text": "Writing recall reminders for 14 patients",
+    "next_run_at": "2026-10-30T11:30:00.000Z"
+   },
+   {
+    "id": "5b568f23-5de4-4458-a659-d93dbf3e5599",
+    "kind": "dental_general.cancel_fill",
+    "name": "Gus",
+    "status": "idle",
+    "status_text": "",
+    "next_run_at": "2026-10-29T21:25:47.745Z"
+   },
+   {
+    "id": "8de15133-49a0-43e2-ae02-1d07d0626cc4",
+    "kind": "research",
+    "name": "Theo",
+    "status": "working",
+    "status_text": "Comparing clear-aligner prices nearby",
+    "next_run_at": null
+   },
+   {
+    "id": "5b9cc033-943c-44be-9892-7004413092cf",
+    "kind": "dental_general.postop",
+    "name": "Wren",
+    "status": "idle",
+    "status_text": "",
+    "next_run_at": "2026-10-29T23:35:47.745Z"
+   }
+  ],
+  "holds": [
+   {
+    "id": "h1",
+    "label": "Anika Patel",
+    "scope": "reminders",
+    "reason": "Disputing a charge (invoice 2231)",
+    "by": "Rosa",
+    "resume_at": null
+   }
+  ]
+ },
+ "bots": {
+  "inbox": {
+   "bot": {
+    "kind": "inbox",
+    "name": "Mirela",
+    "approval": "ask",
+    "next_run_at": "2026-10-29T20:50:47.722Z",
+    "id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "needs_you",
+    "status_text": "2 drafts for you",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Mirela",
+    "role": "Front desk",
+    "title": "Answers patients, books appointments and flags tooth pain, swelling or a broken crown the moment it lands",
+    "hue": 65,
+    "prop": "papers",
+    "category": "communication",
+    "needs": [
+     "email"
+    ],
+    "schedule": {
+     "everyMinutes": 15
+    }
+   },
+   "waiting": [
+    {
+     "counterparty": "Lena Chen",
+     "amount_cents": null,
+     "currency": null,
+     "group_key": null,
+     "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+     "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+     "run_id": null,
+     "thread_id": null,
+     "tool": "send_email",
+     "risk": "message",
+     "title": "Email to l.chen@example.com: \"Re: Swelling after Tuesday's extraction\"",
+     "payload": {
+      "to": "l.chen@example.com",
+      "subject": "Re: Swelling after Tuesday's extraction",
+      "body": "Hi Lena,\n\nThanks for letting us know. Some swelling is normal for a few days, but we'd like to take a look. Dr. Shah has an opening today at 11:30. Does that work?\n\nIf the pain gets worse or you get a fever before then, call us right away at (416) 555-0142.\n\nMaple Street Dental"
+     },
+     "id": "a775b5b0-e5f4-417c-b8c3-7feab8c37b1f",
+     "status": "pending",
+     "send_after": null,
+     "result": null,
+     "error": null,
+     "created_at": "2026-10-29T20:35:47.747Z"
+    },
+    {
+     "counterparty": "Anika Patel",
+     "amount_cents": null,
+     "currency": null,
+     "group_key": "patel",
+     "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+     "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+     "run_id": null,
+     "thread_id": null,
+     "tool": "send_email",
+     "risk": "message",
+     "title": "Email to anika.patel@example.com: \"Re: Moving Thursday's cleaning\"",
+     "payload": {
+      "to": "anika.patel@example.com",
+      "subject": "Re: Moving Thursday's cleaning",
+      "body": "Hi Anika,\n\nNo problem at all. We can move your cleaning to Monday at 4:15 or Wednesday at 9:00. Just reply with the one you'd like and it's yours.\n\nMaple Street Dental"
+     },
+     "id": "60b6ceaf-0f8b-463b-be0e-cfb9847de005",
+     "status": "pending",
+     "send_after": null,
+     "result": null,
+     "error": null,
+     "created_at": "2026-10-29T20:35:47.748Z"
+    }
+   ],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Sorted 23 new emails, flagged 1 urgent, drafted 2 replies.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "invoices": {
+   "bot": {
+    "kind": "invoices",
+    "name": "Rosa",
+    "approval": "ask",
+    "next_run_at": "2026-10-30T05:00:00.000Z",
+    "id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "needs_you",
+    "status_text": "1 draft for you",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Rosa",
+    "role": "Billing",
+    "title": "Keeps insurance claims and treatment-plan balances moving, and chases what's late (politely)",
+    "hue": 140,
+    "prop": "coins",
+    "category": "money",
+    "needs": [
+     "accounting"
+    ],
+    "schedule": {
+     "dailyAt": "01:00"
+    }
+   },
+   "waiting": [
+    {
+     "counterparty": "Anika Patel",
+     "amount_cents": 8500,
+     "currency": "USD",
+     "group_key": "patel",
+     "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+     "bot_id": "5b1867e5-727e-430b-ade3-e7680d30fdda",
+     "run_id": null,
+     "thread_id": null,
+     "tool": "create_credit_note",
+     "risk": "money",
+     "title": "Credit note → Anika Patel",
+     "payload": {
+      "invoice_id": "2231",
+      "amount": 85,
+      "reason": "March cleaning was charged twice",
+      "customer": "Anika Patel"
+     },
+     "id": "0c7a3d85-3935-4e08-83f2-a7c51be7bf8c",
+     "status": "pending",
+     "send_after": null,
+     "result": null,
+     "error": null,
+     "created_at": "2026-10-29T20:35:47.749Z"
+    }
+   ],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "brief": {
+   "bot": {
+    "kind": "brief",
+    "name": "Juno",
+    "approval": "ask",
+    "next_run_at": null,
+    "id": "abb631ba-187c-417d-8305-7ff7d74dd107",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "idle",
+    "status_text": "",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Juno",
+    "role": "Morning huddle",
+    "title": "Your morning huddle every morning: what needs you, today's chairs and what the team did overnight",
+    "hue": 95,
+    "prop": "plant",
+    "category": "operations",
+    "needs": [],
+    "schedule": null
+   },
+   "waiting": [],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "dental_general.recall": {
+   "bot": {
+    "kind": "dental_general.recall",
+    "name": "Molly",
+    "approval": "ask",
+    "next_run_at": "2026-10-30T11:30:00.000Z",
+    "id": "ab241903-b2b9-4bbe-9803-a19b10dd21f7",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "working",
+    "status_text": "Writing recall reminders for 14 patients",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Molly",
+    "role": "Recall",
+    "title": "Brings patients back for their six-month cleanings and exams",
+    "hue": 200,
+    "prop": "calendar",
+    "category": "communication",
+    "needs": [
+     "email",
+     "crm",
+     "calendar"
+    ],
+    "schedule": {
+     "dailyAt": "07:30"
+    }
+   },
+   "waiting": [],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "dental_general.cancel_fill": {
+   "bot": {
+    "kind": "dental_general.cancel_fill",
+    "name": "Gus",
+    "approval": "ask",
+    "next_run_at": "2026-10-29T21:25:47.745Z",
+    "id": "5b568f23-5de4-4458-a659-d93dbf3e5599",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "idle",
+    "status_text": "",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Gus",
+    "role": "Chair filler",
+    "title": "Fills last-minute dental cancellations from the short-notice list",
+    "hue": 260,
+    "prop": "phone",
+    "category": "operations",
+    "needs": [
+     "email",
+     "calendar",
+     "crm"
+    ],
+    "schedule": {
+     "everyMinutes": 30
+    }
+   },
+   "waiting": [],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "research": {
+   "bot": {
+    "kind": "research",
+    "name": "Theo",
+    "approval": "ask",
+    "next_run_at": null,
+    "id": "8de15133-49a0-43e2-ae02-1d07d0626cc4",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "working",
+    "status_text": "Comparing clear-aligner prices nearby",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Theo",
+    "role": "Research",
+    "title": "Looks into labs, suppliers and nearby practices, and answers the questions you never get to",
+    "hue": 185,
+    "prop": "books",
+    "category": "research",
+    "needs": [
+     "web"
+    ],
+    "schedule": null
+   },
+   "waiting": [],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  },
+  "dental_general.postop": {
+   "bot": {
+    "kind": "dental_general.postop",
+    "name": "Wren",
+    "approval": "ask",
+    "next_run_at": "2026-10-29T23:35:47.745Z",
+    "id": "5b9cc033-943c-44be-9892-7004413092cf",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "enabled": true,
+    "status": "idle",
+    "status_text": "",
+    "blocked_reason": null,
+    "settings": {},
+    "state": {},
+    "last_run_at": null
+   },
+   "template": {
+    "name": "Wren",
+    "role": "After-visit check",
+    "title": "Checks in the day after extractions, implants and other procedures",
+    "hue": 175,
+    "prop": "plant",
+    "category": "communication",
+    "needs": [
+     "email",
+     "calendar",
+     "crm"
+    ],
+    "schedule": {
+     "dailyAt": "10:00"
+    }
+   },
+   "waiting": [],
+   "runs": [
+    {
+     "id": "r1",
+     "at": "2026-10-29T20:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Checked what's new; nothing needed you.",
+     "cost_usd": 0.004,
+     "retry_at": null
+    },
+    {
+     "id": "r2",
+     "at": "2026-10-29T19:17:47.748Z",
+     "trigger": "schedule",
+     "status": "done",
+     "summary": "Quiet hour: 4 emails, all filed.",
+     "cost_usd": 0.002,
+     "retry_at": null
+    }
+   ]
+  }
+ },
+ "connections": {
+  "connections": [
+   {
+    "id": "4e898d65-40e4-4edd-8f5e-5859cf3cfe1b",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "account": "frontdesk@maplestreetdental.example",
+    "kinds": [
+     "email",
+     "calendar"
+    ],
+    "status": "ok",
+    "provider": "google",
+    "last_synced_at": "2026-10-29T20:31:47.720Z",
+    "health": "Healthy",
+    "used_by": [
+     "Mirela",
+     "Molly",
+     "Gus",
+     "Wren"
+    ]
+   },
+   {
+    "id": "ccb592e7-62e9-4c77-93c5-559882aea6ae",
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "account": "Maple Street Dental",
+    "kinds": [
+     "accounting"
+    ],
+    "status": "ok",
+    "provider": "quickbooks",
+    "last_synced_at": "2026-10-29T20:09:47.721Z",
+    "health": "Healthy",
+    "used_by": [
+     "Rosa"
+    ]
+   }
+  ],
+  "missing": [
+   {
+    "kind": "crm",
+    "needed_by": [
+     "Molly",
+     "Gus",
+     "Wren"
+    ]
+   }
+  ]
+ },
+ "billing": {
+  "plan": {
+   "staff": false,
+   "id": "studio",
+   "name": "Studio",
+   "interval": "month",
+   "active": true,
+   "renews": "2026-11-28T20:35:47.749Z",
+   "trial_ends_at": null,
+   "cancels": null,
+   "status": "active"
+  },
+  "prices": {
+   "solo": {
+    "month": 39,
+    "year": 390
+   },
+   "studio": {
+    "month": 89,
+    "year": 890
+   },
+   "team": {
+    "month": 189,
+    "year": 1890
+   },
+   "seat": 15
+  },
+  "meters": {
+   "research_hours": {
+    "used": 3.5,
+    "of": 100,
+    "resets": "2026-11-28T20:35:47.749Z"
+   },
+   "seats": {
+    "used": 1,
+    "of": 2
+   },
+   "inboxes": {
+    "used": 1,
+    "of": 3
+   }
+  },
+  "billing_email": "jordan@maplestreetdental.example",
+  "invoices": [
+   {
+    "date": "2026-10-29T20:35:47.749Z",
+    "description": "1 × Nightshift Studio (at $89.00 / month)",
+    "amount": 89,
+    "currency": "USD",
+    "status": "paid",
+    "pdf": null
+   }
+  ],
+  "card": {
+   "brand": "visa",
+   "last4": "4242",
+   "exp": "12/30"
+  }
+ },
+ "threads": {
+  "inbox": {
+   "threads": [
+    {
+     "id": "987598f3-7330-4827-8bdc-db751c11b329",
+     "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+     "kind": "direct",
+     "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+     "title": ""
+    }
+   ]
+  }
+ },
+ "thread": {
+  "thread": {
+   "id": "987598f3-7330-4827-8bdc-db751c11b329",
+   "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+   "kind": "direct",
+   "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+   "title": ""
+  },
+  "messages": [
+   {
+    "kind": "text",
+    "bot_id": null,
+    "user_id": null,
+    "run_id": null,
+    "data": {},
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "987598f3-7330-4827-8bdc-db751c11b329",
+    "role": "owner",
+    "content": "Anything urgent from patients?",
+    "id": "b7b7ab5d-5d38-4e33-b04c-4ec83788250f",
+    "created_at": "2026-10-29T20:35:47.759Z"
+   },
+   {
+    "kind": "text",
+    "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "user_id": null,
+    "run_id": null,
+    "data": {
+     "action_ids": [
+      "a775b5b0-e5f4-417c-b8c3-7feab8c37b1f"
+     ]
+    },
+    "mentions": [],
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "thread_id": "987598f3-7330-4827-8bdc-db751c11b329",
+    "role": "bot",
+    "content": "One, and it's waiting for you:\n- **Lena Chen** has swelling two days after Tuesday's extraction. Dr. Shah is free at 11:30, so I drafted that offer, plus when to call us right away.\n\nEverything else can wait: a reschedule from Anika Patel (drafted), two new-patient enquiries (passed to Iris's list for tomorrow) and the usual supplier mail.",
+    "id": "9f9e8a6d-13cf-4a22-9891-1ef1ec6e1c00",
+    "created_at": "2026-10-29T20:35:47.760Z"
+   }
+  ],
+  "actions": [
+   {
+    "counterparty": "Lena Chen",
+    "amount_cents": null,
+    "currency": null,
+    "group_key": null,
+    "workspace_id": "1f015c8c-127e-4db0-8f51-fdaae52cbebc",
+    "bot_id": "ea551f5c-0aa9-4787-a312-f064d92ae4fc",
+    "run_id": null,
+    "thread_id": null,
+    "tool": "send_email",
+    "risk": "message",
+    "title": "Email to l.chen@example.com: \"Re: Swelling after Tuesday's extraction\"",
+    "payload": {
+     "to": "l.chen@example.com",
+     "subject": "Re: Swelling after Tuesday's extraction",
+     "body": "Hi Lena,\n\nThanks for letting us know. Some swelling is normal for a few days, but we'd like to take a look. Dr. Shah has an opening today at 11:30. Does that work?\n\nIf the pain gets worse or you get a fever before then, call us right away at (416) 555-0142.\n\nMaple Street Dental"
+    },
+    "id": "a775b5b0-e5f4-417c-b8c3-7feab8c37b1f",
+    "status": "pending",
+    "send_after": null,
+    "result": null,
+    "error": null,
+    "created_at": "2026-10-29T20:35:47.747Z"
+   }
+  ]
+ }
+}
