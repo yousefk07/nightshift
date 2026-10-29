@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, ApiError, useApi, useLive } from "@/lib/client";
 import { Logo } from "./Logo";
 import { NeedDot } from "./pixel";
@@ -58,13 +58,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const office = useApi<Office>(me.data ? "/api/office" : null, { poll: 30_000 });
   const [listeners] = useState(() => new Set<(e: { type: string; data: any }) => void>());
   const [toasts, setToasts] = useState<{ id: number; text: string; undo?: () => Promise<void>; until: number }[]>([]);
-  const [now, setNow] = useState<Date | null>(null); // set after load: the clock isn't part of the prerendered page
-
-  useEffect(() => {
-    queueMicrotask(() => setNow(new Date()));
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   // Not signed in: to sign-in. Signed in but not set up: to onboarding.
   useEffect(() => {
@@ -73,13 +66,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     else if (me.data && !me.data.workspace.onboarded_at && !path.startsWith("/onboarding") && me.data.user.role === "owner") router.replace("/onboarding");
   }, [me.error, me.data, path, router]);
 
+  // a burst of live events (a bot finishing several steps) refreshes the office once
+  const refreshOffice = office.refresh;
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   useLive(
     useCallback(
       (e) => {
         listeners.forEach((fn) => fn(e));
-        if (e.type === "bot" || e.type === "action") office.refresh();
+        if (e.type === "bot" || e.type === "action") {
+          if (pending.current) clearTimeout(pending.current);
+          pending.current = setTimeout(refreshOffice, 300);
+        }
       },
-      [listeners, office],
+      [listeners, refreshOffice],
     ),
   );
 
@@ -90,26 +89,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), seconds * 1000);
   }, []);
 
+  // one object per real change, so screens using useApp() don't re-render for nothing
+  const ctx = useMemo<Ctx | null>(() => (me.data ? {
+    me: me.data,
+    office: office.data,
+    refreshOffice,
+    refreshMe: me.refresh,
+    onLive: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
+    toast,
+  } : null), [me.data, office.data, refreshOffice, me.refresh, listeners, toast]);
+
   if (me.error && !(me.error.status === 401)) return <Offline onRetry={me.refresh} />;
-  if (!me.data) return <div style={{ minHeight: "100vh", background: "var(--night)" }} />;
+  if (!me.data || !ctx) return <div style={{ minHeight: "100dvh", background: "var(--night)" }} />;
 
   const o = office.data;
   const tz = me.data.workspace.timezone;
   const needs = o?.needs_you ?? [];
-  const ctx: Ctx = {
-    me: me.data,
-    office: o,
-    refreshOffice: office.refresh,
-    refreshMe: me.refresh,
-    onLive: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
-    toast,
-  };
   const active = (href: string) => path === href || path.startsWith(href + "/");
 
   return (
     <AppCtx.Provider value={ctx}>
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--night)", color: "var(--night-ink)" }}>
-        <header style={{ height: 56, flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "var(--night)", borderBottom: "3px solid var(--night-2)", position: "sticky", top: 0, zIndex: 20 }}>
+      <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--night)", color: "var(--night-ink)", overflow: "hidden" }}>
+        <header style={{ height: 56, flex: "none", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", background: "var(--night)", borderBottom: "3px solid var(--night-2)", zIndex: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
             <Link href="/office" style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--night-ink)", textDecoration: "none" }}>
               <Logo tone="dark" size={18} />
@@ -124,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 13, color: "#cbbcae" }}>
-            <span className="mono ns-hide-sm">{now?.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}</span>
+            <Clock tz={tz} />
             {o && <span className="ns-hide-sm">{o.working} working</span>}
             {needs.length > 0 && (
               <Link href="/desk" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--gold)", textDecoration: "none" }}>
@@ -138,19 +139,19 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         {me.data.workspace.deleted_at ? (
-          <div role="alert" style={{ background: "var(--bad)", color: "#fff", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
+          <div role="alert" style={{ flex: "none", background: "var(--bad)", color: "#fff", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
             This workspace is set to be deleted on {new Date(new Date(me.data.workspace.deleted_at).getTime() + 30 * 86_400_000).toLocaleDateString("en-US", { month: "long", day: "numeric" })}, so the team is off shift.
             {me.data.user.role === "owner" && (
               <button onClick={() => api("/api/workspace", { json: { restore: true } }).then(me.refresh)} style={{ background: "#fff", color: "var(--bad)", border: 0, borderRadius: 6, padding: "4px 10px", fontWeight: 700, cursor: "pointer" }}>Restore it</button>
             )}
           </div>
         ) : !me.data.plan.active && (
-          <div role="alert" style={{ background: "var(--bad)", color: "#fff", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center" }}>
+          <div role="alert" style={{ flex: "none", background: "var(--bad)", color: "#fff", padding: "10px 20px", fontSize: 14, display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             Your {me.data.plan.name.toLowerCase()} has ended, so the team is off shift. <Link href="/settings/billing" style={{ color: "#fff", fontWeight: 700 }}>Pick a plan</Link>
           </div>
         )}
 
-        <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{children}</main>
+        <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>{children}</main>
 
         <nav className="ns-mobile-tabs" aria-label="Sections">
           {MOBILE_TABS.map((t) => (
@@ -161,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        <div aria-live="polite" style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 8, zIndex: 50 }}>
+        <div aria-live="polite" className="ns-toasts" style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 8, zIndex: 50, width: "max-content", maxWidth: "calc(100vw - 32px)" }}>
           {toasts.map((t) => (
             <div key={t.id} role="status" style={{ display: "flex", alignItems: "center", gap: 14, background: "var(--ink)", color: "var(--paper)", padding: "10px 16px", borderRadius: 10, fontSize: 14, boxShadow: "var(--shadow)", animation: "ns-toast .2s ease-out" }}>
               {t.text}
@@ -178,11 +179,36 @@ export function AppShell({ children }: { children: ReactNode }) {
         .ns-mobile-tabs { display: none; }
         @media (max-width: 720px) {
           .ns-tabs, .ns-hide-sm { display: none !important; }
-          .ns-mobile-tabs { display: flex; position: sticky; bottom: 0; background: var(--night-2); border-top: 2px solid #000; z-index: 20; }
+          .ns-mobile-tabs { display: flex; flex: none; background: var(--night-2); border-top: 2px solid #000; z-index: 20; padding-bottom: env(safe-area-inset-bottom); }
+          .ns-toasts { bottom: 84px !important; }
         }
       `}</style>
     </AppCtx.Provider>
   );
+}
+
+// The workspace's time in the top bar. Its own component, so the minute ticking over re-renders only this.
+function Clock({ tz }: { tz: string }) {
+  const [now, setNow] = useState<Date | null>(null); // set after load: the clock isn't part of the prerendered page
+  useEffect(() => {
+    queueMicrotask(() => setNow(new Date()));
+    const t = setInterval(() => setNow(new Date()), 15_000);
+    return () => clearInterval(t);
+  }, []);
+  return <span className="mono ns-hide-sm">{now?.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}</span>;
+}
+
+// A bot hops at its desk (and wherever its tile is) when the owner approves its work.
+export const cheerFor = (botId: string) => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("ns-cheer", { detail: botId })); };
+export function useCheering(botId: string | undefined) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!botId) return;
+    const on = (e: Event) => { if ((e as CustomEvent).detail === botId) setN((x) => x + 1); };
+    addEventListener("ns-cheer", on);
+    return () => removeEventListener("ns-cheer", on);
+  }, [botId]);
+  return n; // use as a key, so the animation restarts on every cheer
 }
 
 function Countdown({ until }: { until: number }) {
@@ -214,8 +240,9 @@ export function Offline({ onRetry }: { onRetry: () => void }) {
 export function useApprove() {
   const { toast, refreshOffice, refreshMe } = useApp();
   return useCallback(
-    async (id: string, title: string, payload?: Record<string, unknown>) => {
+    async (id: string, title: string, payload?: Record<string, unknown>, botId?: string) => {
       await api(`/api/actions/${id}`, { json: { decision: "approve", ...(payload ? { payload } : {}) } });
+      if (botId) cheerFor(botId);
       toast({ text: title.startsWith("Email to") ? `Sending: ${title.replace(/^Email to /, "")}` : `Approved: ${title}`, undo: async () => { await api(`/api/actions/${id}/undo`, { method: "POST" }); refreshOffice(); refreshMe(); } });
       refreshOffice();
       refreshMe();

@@ -120,7 +120,7 @@ export function RoomView() {
   const msgs = room?.messages ?? [];
 
   return (
-    <div style={{ flex: 1, display: "flex", minHeight: 0, height: "calc(100vh - 59px)", background: "#f8f2e9", color: "#2b2320" }}>
+    <div style={{ flex: 1, display: "flex", minHeight: 0, background: "#f8f2e9", color: "#2b2320" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div style={{ height: 68, flex: "none", display: "flex", alignItems: "center", gap: 14, padding: "0 32px", borderBottom: "1px solid #e4d9ca" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>

@@ -20,7 +20,7 @@ export default function OfficePage() {
   return (
     <>
       <BrokenBanner />
-      <div className="ns-office-desktop" style={{ flex: 1, display: "flex", minHeight: 0, height: "calc(100vh - 59px)" }}>
+      <div className="ns-office-desktop" style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* the room fills the window: rows centred, scaled to fit, never scrolls */}
         <div style={{ position: "relative", flex: 1, overflow: "hidden", background: "#5a4238" }}>
           <OfficeFloor desks={desks} waiting={me.waiting} selected={selected} onSelect={(id) => setSelected(selected === id ? null : id)} />

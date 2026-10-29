@@ -15,7 +15,7 @@ export default function ChatsPage() {
     if (first) router.replace(`/chats/${encodeURIComponent(first.kind)}`);
   }, [office, router]);
   return (
-    <div style={{ flex: 1, background: "#f8f2e9", color: "#2b2320", padding: "20px 14px", minHeight: "calc(100vh - 59px)" }}>
+    <div style={{ flex: 1, background: "#f8f2e9", color: "#2b2320", padding: "20px 14px" }}>
       <TeamList />
     </div>
   );

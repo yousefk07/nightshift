@@ -15,7 +15,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const path = usePathname();
   const { me } = useApp();
   return (
-    <div style={{ flex: 1, display: "flex", background: "#f6f0e7", color: "#2b2320", minHeight: "calc(100vh - 59px)" }} className="ns-settings">
+    <div style={{ flex: 1, display: "flex", background: "#f6f0e7", color: "#2b2320" }} className="ns-settings">
       <nav aria-label="Settings" style={{ width: 240, flex: "none", padding: "28px 18px", borderRight: "1px solid #e4d9ca", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{ fontSize: 20, fontWeight: 700, padding: "0 10px" }}>Settings</div>
         {NAV.map((g) => (

@@ -39,7 +39,7 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div style={{ flex: 1, background: "#f8f2e9", color: "#2b2320", padding: "22px 16px 28px", display: "flex", flexDirection: "column", gap: 16, minHeight: "calc(100vh - 59px)", maxWidth: 640, width: "100%", margin: "0 auto" }}>
+    <div style={{ flex: 1, background: "#f8f2e9", color: "#2b2320", padding: "22px 16px 28px", display: "flex", flexDirection: "column", gap: 16, maxWidth: 640, width: "100%", margin: "0 auto" }}>
       <div>
         <div style={{ fontSize: 24, fontWeight: 700 }}>{hello}{first ? `, ${first}` : ""}</div>
         <div style={{ fontSize: 14.5, color: "#776a5e" }}>{items.length ? `${items.length} ${items.length === 1 ? "thing is" : "things are"} waiting. About ${d.data?.minutes ?? 1} minute${d.data?.minutes === 1 ? "" : "s"}.` : "Nothing is waiting."}</div>

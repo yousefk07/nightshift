@@ -10,7 +10,7 @@ export default function ChatPage({ params }: { params: Promise<{ kind: string }>
   const { office } = useApp();
   const desk = office?.desks.find((d) => d.kind === kind);
   return (
-    <div style={{ flex: 1, display: "flex", minHeight: 0, height: "calc(100vh - 59px)", background: "#f8f2e9" }}>
+    <div style={{ flex: 1, display: "flex", minHeight: 0, background: "#f8f2e9" }}>
       <aside className="ns-chat-team" style={{ width: 300, flex: "none", padding: "20px 14px", borderRight: "1px solid #e4d9ca", background: "#f4ecdf", overflowY: "auto" }}>
         <TeamList current={kind} />
       </aside>
