@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { body, HttpError, requireOwner, route } from "@/lib/auth";
 import { INDUSTRIES, isTemplate } from "@/lib/bots";
-import { hireRow, PAIN_POINTS } from "@/lib/engine/flows";
+import { hireRow, PAIN_POINTS, renameToCast } from "@/lib/engine/flows";
 import { inviteMember } from "@/lib/team";
 import { limits } from "@/lib/plans";
 import { supabaseStore } from "@/lib/store-supabase";
@@ -25,7 +25,9 @@ export const PATCH = route(async (req, me) => {
   requireOwner(me);
   const s = await body(req, (v) => Step.parse(v));
   const { step, ...fields } = s;
-  await supabaseStore().updateWorkspace(me.ws.id, { ...fields, ...(step ? { onboarding_step: step } : {}) });
+  const store = supabaseStore();
+  await store.updateWorkspace(me.ws.id, { ...fields, ...(step ? { onboarding_step: step } : {}) });
+  if (fields.industry) await renameToCast(store, await store.workspace(me.ws.id)); // the team takes the industry's cast
   return Response.json({ saved: true });
 });
 

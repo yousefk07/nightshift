@@ -1,4 +1,5 @@
-import { botDef, chipsFor, starters, taskFor, teamLabel, TEMPLATES, type BotTemplate, type Industry } from "../bots";
+import { botDef, CASTS, chipsFor, starters, taskFor, teamLabel, TEMPLATES, type BotTemplate, type Industry } from "../bots";
+import { CORE_IDS } from "../bots/casts";
 import type { Store } from "../store";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
@@ -373,4 +374,15 @@ export function briefDue(ws: Workspace, now = new Date()) {
   const v = Object.fromEntries(local.map((x) => [x.type, x.value]));
   const day = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(v.weekday);
   return p.days.includes(day) && `${v.hour}:${v.minute}` >= p.time;
+}
+
+// When a business's industry is set or changes: core bots still wearing a stock name (the default team's or
+// any industry's cast) take this industry's; a name the owner chose stays.
+export async function renameToCast(store: Store, ws: Workspace) {
+  const stock = (kind: string) => new Set([botDef(kind).name, ...Object.values(CASTS).map((c) => c?.bots[kind as keyof NonNullable<typeof c>["bots"]]?.name)].filter(Boolean));
+  for (const b of await store.bots(ws.id)) {
+    if (!(CORE_IDS as readonly string[]).includes(b.kind)) continue;
+    const want = botDef(b.kind, ws.industry).name;
+    if (b.name !== want && stock(b.kind).has(b.name)) await store.updateBot(b.id, { name: want });
+  }
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { body, requireOwner, route } from "@/lib/auth";
 import { INDUSTRIES } from "@/lib/bots";
+import { renameToCast } from "@/lib/engine/flows";
 import { admin, supabaseStore } from "@/lib/store-supabase";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -21,6 +22,7 @@ export const PATCH = route(async (req, me) => {
   const patch = await body(req, (v) => Patch.parse(v));
   const { data, error } = await admin().from("workspaces").update(patch).eq("id", me.ws.id).select().single();
   if (error) throw new Error(error.message);
+  if (patch.industry) await renameToCast(supabaseStore(), await supabaseStore().workspace(me.ws.id));
   return Response.json(data);
 });
 

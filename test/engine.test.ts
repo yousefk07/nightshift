@@ -340,3 +340,19 @@ describe("industry casts in the office", () => {
     expect(office.team).toBe("dental front office");
   });
 });
+
+describe("changing industry", () => {
+  it("core bots take the new industry's cast names, but a name the owner chose stays", async () => {
+    const { store, ws, db } = memStore();
+    const { renameToCast } = await import("../lib/engine/flows");
+    const { botDef } = await import("../lib/bots");
+    db.bots.find((b) => b.kind === "invoices")!.name = "Moneypenny"; // the owner's own name
+    ws.industry = "hvac";
+    await renameToCast(store, ws);
+    expect(db.bots.find((b) => b.kind === "inbox")!.name).toBe(botDef("inbox", "hvac").name);
+    expect(db.bots.find((b) => b.kind === "invoices")!.name).toBe("Moneypenny");
+    ws.industry = "dental_general";
+    await renameToCast(store, ws);
+    expect(db.bots.find((b) => b.kind === "inbox")!.name).toBe(botDef("inbox", "dental_general").name); // cast to cast
+  });
+});
