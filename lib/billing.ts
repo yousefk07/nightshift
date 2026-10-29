@@ -45,7 +45,12 @@ export async function priceId(lookup: string) {
 }
 
 async function customerFor(store: Store, ws: Workspace, email: string) {
-  if (ws.stripe_customer_id) return ws.stripe_customer_id;
+  if (ws.stripe_customer_id) {
+    // a customer made with the other key (sandbox vs live) doesn't exist here: start fresh instead of failing
+    const found = await stripe<{ deleted?: boolean }>(`/customers/${ws.stripe_customer_id}`).catch(() => null);
+    if (found && !found.deleted) return ws.stripe_customer_id;
+    await store.updateWorkspace(ws.id, { stripe_customer_id: null, stripe_subscription_id: null });
+  }
   const c = await stripe<{ id: string }>("/customers", { email: ws.billing_email ?? email, name: ws.name, metadata: { workspace_id: ws.id } });
   await store.updateWorkspace(ws.id, { stripe_customer_id: c.id });
   return c.id;

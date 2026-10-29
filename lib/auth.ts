@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { sha256 } from "./crypto";
+import { ownerAlert } from "./alerts";
 import { exactly } from "./like";
 import { isStaff } from "./staff";
 import { defaultBots } from "./engine/flows";
@@ -116,6 +117,7 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
   await db.from("profiles").upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: true });
   for (const b of defaultBots(ws)) await store.hireBot(ws.id, b);
   await store.room(ws.id);
+  if (!staff) await ownerAlert({ kind: "signup", heading: email, lead: "Someone new signed up. Their 14-day Studio trial has started.", rows: [["Email", email], ["Trial ends", new Date(ws.trial_ends_at).toLocaleDateString("en-US", { month: "long", day: "numeric" })]] });
   return { ws: await store.workspace(ws.id), role: "owner" };
 }
 
