@@ -6,6 +6,7 @@ import { api, streamPost } from "@/lib/client";
 import { useApp, type DeskInfo } from "../AppShell";
 import { TypingDots } from "../pixel";
 import { Button } from "../ui";
+import { Prose } from "../Prose";
 import { BotTile, DraftCard, type Action } from "./cards";
 
 // 02 Chat: the team on the left, one conversation on the right, drafts inline as cards.
@@ -31,21 +32,6 @@ export function TeamList({ current }: { current?: string }) {
         </Link>
       ))}
     </div>
-  );
-}
-
-// Bot text: paragraphs, bullets and bold, nothing fancier.
-function Prose({ text }: { text: string }) {
-  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
-  return (
-    <>
-      {text.split(/\n{2,}/).map((block, i) => {
-        const lines = block.split("\n");
-        if (lines.every((l) => /^\s*[-*] /.test(l))) return <ul key={i} style={{ margin: 0, paddingLeft: 20 }}>{lines.map((l, j) => <li key={j} dangerouslySetInnerHTML={{ __html: esc(l.replace(/^\s*[-*] /, "")) }} />)}</ul>;
-        if (/^#{1,3} /.test(block)) return <div key={i} style={{ fontWeight: 700 }} dangerouslySetInnerHTML={{ __html: esc(block.replace(/^#{1,3} /, "")) }} />;
-        return <div key={i} style={{ textWrap: "pretty" as never, whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: esc(block) }} />;
-      })}
-    </>
   );
 }
 

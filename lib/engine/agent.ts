@@ -51,6 +51,7 @@ async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[]
     "If a tool says someone is on hold, on the do-not-contact list or was already contacted this week, respect it: don't try another way to reach them.",
     teamLine(bot, team),
     memories.length ? `What the team knows (shared memory; add lasting facts with remember):\n${memories.map((m) => `- ${m.subject ? m.subject + ": " : ""}${m.fact}`).join("\n")}` : "",
+    "Write for a busy owner: start with one plain sentence that says what happened, then at most 6 short '- ' bullets. Use **bold** only for a label at the start of a bullet. No tables, no headings, no sign-off.",
     "Be brief and concrete. Never invent facts, emails, amounts or sources; if you don't know, say so. Never give medical, legal or financial advice to customers.",
     Object.keys(bot.settings ?? {}).length ? `Your settings from the owner: ${JSON.stringify(bot.settings)}` : "",
   ].filter(Boolean).join("\n\n");

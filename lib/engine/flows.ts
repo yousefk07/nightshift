@@ -181,7 +181,7 @@ export async function runNow(store: Store, ws: Workspace, kind: BotKind, task?: 
 async function reportInRoom(store: Store, ws: Workspace, bot: Bot, run: Run, result: RunResult) {
   if (!result.text) return;
   const room = await store.room(ws.id);
-  const short = result.text.length > 700 ? result.text.slice(0, 700).replace(/\s+\S*$/, "") + "…" : result.text;
+  const short = result.text.length > 4000 ? result.text.slice(0, 4000).replace(/\s+\S*$/, "") + "…" : result.text; // the room folds long reports
   await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "bot", bot_id: bot.id, run_id: run.id, content: short, data: { run_id: run.id, status: result.status, action_ids: result.actions } });
 }
 

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, clock, money } from "@/lib/client";
 import { useApp, type DeskInfo } from "../AppShell";
 import { TypingDots } from "../pixel";
+import { Prose } from "../Prose";
 import { Button } from "../ui";
 import { BotTile, Review, useCanApprove, type Action } from "./cards";
 
@@ -16,17 +17,10 @@ interface Room { thread_id: string; messages: Msg[]; in_the_room: { id: string; 
 const nameColor = (hue: number) => `oklch(0.5 0.11 ${hue})`;
 
 // "@Ledger" in a message, in the bot's colour.
-function Mentions({ text, desks }: { text: string; desks: DeskInfo[] }) {
-  const parts = text.split(/(@[\p{L}][\p{L}\d_.-]*)/u);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const d = p.startsWith("@") ? desks.find((x) => x.name.toLowerCase() === p.slice(1).toLowerCase() || x.kind === p.slice(1).toLowerCase()) : undefined;
-        return d ? <span key={i} style={{ fontWeight: 600, color: `oklch(0.48 0.1 ${d.hue})` }}>{p}</span> : <span key={i}>{p}</span>;
-      })}
-    </>
-  );
-}
+const mentionColor = (name: string, desks: DeskInfo[]) => {
+  const d = desks.find((x) => x.name.toLowerCase() === name.toLowerCase() || x.kind === name.toLowerCase());
+  return d ? `oklch(0.48 0.1 ${d.hue})` : null;
+};
 
 function Chip({ children }: { children: React.ReactNode }) {
   return <div style={{ alignSelf: "flex-start", display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "5px 10px", borderRadius: 8, background: "#efe6d8", color: "#5d5148" }}>{children}</div>;
@@ -176,7 +170,7 @@ export function RoomView() {
                       <span style={{ fontSize: 14.5, fontWeight: 700, color: nameColor(d?.hue ?? 30) }}>{d?.name ?? "A bot"}</span>
                       <span className="mono" style={{ fontSize: 11.5, color: "#776a5e" }}>{clock(m.created_at, tz)}</span>
                     </div>
-                    {!m.content.startsWith("Waiting for your OK") && <div style={{ fontSize: 15, lineHeight: 1.5, whiteSpace: "pre-wrap" }}><Mentions text={m.content} desks={desks} /></div>}
+                    {!m.content.startsWith("Waiting for your OK") && <div style={{ fontSize: 15, lineHeight: 1.55 }}><Prose text={m.content} collapse mention={(n) => mentionColor(n, desks)} /></div>}
                     {m.kind === "handoff" && <Chip>Handed off · {d?.name} → {to?.name ?? "a teammate"} · &quot;{m.data.title}&quot;</Chip>}
                     {m.kind === "hold" && <Chip>Paused · {m.data.label} {m.data.scope === "reminders" ? "payment reminders" : m.data.scope === "followups" ? "follow-ups" : "outreach"}</Chip>}
                     {cards.length > 0 && <ApprovalGroup items={cards} onChanged={load} />}
