@@ -68,7 +68,7 @@ export default function ProfilePage() {
             <TextArea rows={5} value={f.signature} onChange={(e) => setF({ ...f, signature: e.target.value })} placeholder={"Warm and short. First names. No exclamation marks.\n\nWarmly,\nSam"} />
           </Field>
           <ErrorLine error={error} />
-          <div><Button onClick={save}>Save changes</Button></div>
+          <div><Button onClick={save} disabled={!p.data}>Save changes</Button></div>{/* not before the saved values have loaded */}
         </div>
       </Section>
 

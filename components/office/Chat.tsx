@@ -109,8 +109,8 @@ export function ChatView({ desk }: { desk: DeskInfo }) {
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", justifyContent: "center", padding: "28px 32px" }}>
         <div style={{ width: "100%", maxWidth: 740, display: "flex", flexDirection: "column", gap: 22, justifyContent: "flex-end", minHeight: "100%" }}>
           {loaded && msgs.length === 0 && !streaming && (
-            <div style={{ textAlign: "center", color: "#776a5e", fontSize: 14.5, margin: "auto 0" }}>
-              <BotTile desk={desk} size={56} />
+            <div style={{ textAlign: "center", color: "#776a5e", fontSize: 14.5, margin: "auto 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{ animation: "ns-wave .9s .2s ease-in-out 2", transformOrigin: "50% 100%" }}><BotTile desk={desk} size={56} bob /></div>
               <p>{desk.name} is ready. {desk.title}.</p>
             </div>
           )}

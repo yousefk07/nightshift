@@ -22,8 +22,10 @@ export default function TeamPage() {
       await fn();
       if (done) toast({ text: done });
       t.refresh();
+      return true;
     } catch (e) {
       setError((e as Error).message);
+      return false;
     }
   };
   const roles = Object.entries(t.data?.roles ?? {}).filter(([k]) => k !== "owner");
@@ -52,7 +54,7 @@ export default function TeamPage() {
       </Section>
       {owner && (
         <Section title="Invite person">
-          <form onSubmit={(e) => { e.preventDefault(); run(() => api("/api/team", { json: { email, role } }), `Invite sent to ${email}.`).then(() => setEmail("")); }} style={{ padding: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <form onSubmit={(e) => { e.preventDefault(); run(() => api("/api/team", { json: { email, role } }), `Invite sent to ${email}.`).then((ok) => { if (ok) setEmail(""); }); }} style={{ padding: 18, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Input type="email" required placeholder="name@yourbusiness.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ flex: 1, minWidth: 220 }} />
             <Select value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 220 }}>{roles.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</Select>
             <Button type="submit">Send invite</Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, CSSProperties, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import { useState, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 // The design's small pieces: buttons, pills, section labels, cards, inputs. Colours follow Nightshift.dc.html.
 
@@ -14,14 +14,28 @@ const BTN: Record<BtnKind, CSSProperties> = {
   night: { background: "#46374d", color: "#f1e6d6", border: "1px solid #46374d" },
 };
 
-export function Button({ kind = "dark", size = "md", style, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { kind?: BtnKind; size?: "sm" | "md" | "lg" }) {
+// When onClick returns a promise the button holds itself down until it settles (no double approvals, double
+// hires or double invites) and a failure becomes a toast instead of nothing happening.
+export function Button({ kind = "dark", size = "md", style, onClick, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { kind?: BtnKind; size?: "sm" | "md" | "lg" }) {
+  const [busy, setBusy] = useState(false);
   const pad = size === "sm" ? "6px 12px" : size === "lg" ? "12px 22px" : "8px 15px";
   const fs = size === "sm" ? 12.5 : size === "lg" ? 15 : 13.5;
+  const click = (e: MouseEvent<HTMLButtonElement>) => {
+    const r = onClick?.(e) as unknown;
+    if (r && typeof (r as Promise<unknown>).then === "function") {
+      setBusy(true);
+      (r as Promise<unknown>).catch((err: Error) => window.dispatchEvent(new CustomEvent("ns-error", { detail: err?.message ?? "Something went wrong." }))).finally(() => setBusy(false));
+    }
+  };
+  const off = disabled || busy;
   return (
     <button
       type="button"
       {...rest}
-      style={{ fontSize: fs, fontWeight: 600, padding: pad, borderRadius: kind === "gold" ? 0 : 8, cursor: rest.disabled ? "not-allowed" : "pointer", opacity: rest.disabled ? 0.5 : 1, fontFamily: "inherit", whiteSpace: "nowrap", ...BTN[kind], ...style }}
+      onClick={click}
+      disabled={off}
+      aria-busy={busy || undefined}
+      style={{ fontSize: fs, fontWeight: 600, padding: pad, minHeight: size === "sm" ? 32 : undefined, borderRadius: kind === "gold" ? 0 : 8, cursor: busy ? "progress" : disabled ? "not-allowed" : "pointer", opacity: disabled && !busy ? 0.5 : 1, fontFamily: "inherit", whiteSpace: "nowrap", transition: "transform .08s, opacity .15s", animation: busy ? "ns-pulse 1s ease-in-out infinite" : undefined, ...BTN[kind], ...style }}
     />
   );
 }

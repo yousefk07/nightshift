@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { api, clock, streamPost, useApi } from "@/lib/client";
-import { useApp, useApprove, type DeskInfo } from "../AppShell";
+import { Hop, useApp, useApprove, type DeskInfo } from "../AppShell";
 import { Desk, deskState, OwnerDesk, TypingDots } from "../pixel";
 import { Button, Card, Label, Pill } from "../ui";
-import { ActionRow, BotTile, BriefCard, Review, useCanApprove, type Action } from "./cards";
+import { ActionRow, BotTile, BriefCard, Review, useCanApprove, type Action, Crew } from "./cards";
 
 // 01 Office: the pixel floor with a desk per bot, and the side panel for whichever desk is open.
 
@@ -103,15 +103,20 @@ export function OfficeFloor({ desks, waiting, selected, onSelect }: { desks: Des
           <div key={d.id} {...pressable(() => onSelect(d.id))} aria-label={`${d.name}, ${d.role}, ${statusLine(d)}`} style={{ position: "absolute", left: p.left, top: p.top, width: 200, cursor: "pointer" }}>
             {selected === d.id && <div style={{ position: "absolute", left: -14, top: -54, width: 228, height: 296, border: `3px dashed oklch(0.82 0.13 ${d.hue})` }} />}
             {d.status === "needs_you" && d.waiting > 0 && (
-              <div className="pixel" style={{ position: "absolute", left: 112, top: -42, padding: "6px 10px", background: "#fff6e4", border: `3px solid ${OL}`, fontSize: 14, color: OL, whiteSpace: "nowrap", boxShadow: "4px 4px 0 0 rgba(0,0,0,.25)", zIndex: 2 }}>
+              <div key={d.waiting} className="pixel" style={{ animation: "ns-pop .35s cubic-bezier(.2,.9,.3,1.3) both", transformOrigin: "0 100%", position: "absolute", left: 112, top: -42, padding: "6px 10px", background: "#fff6e4", border: `3px solid ${OL}`, fontSize: 14, color: OL, whiteSpace: "nowrap", boxShadow: "4px 4px 0 0 rgba(0,0,0,.25)", zIndex: 2 }}>
                 {d.waiting} {d.waiting === 1 ? "draft" : "drafts"} for you
               </div>
             )}
             {d.status === "blocked" && (
-              <div className="pixel" style={{ position: "absolute", left: 96, top: -42, padding: "6px 10px", background: "#ffe3dd", border: `3px solid ${OL}`, fontSize: 14, color: OL, whiteSpace: "nowrap", zIndex: 2 }}>I&apos;m stuck.</div>
+              <div className="pixel" style={{ animation: "ns-wave 1.8s ease-in-out infinite", transformOrigin: "50% 100%", position: "absolute", left: 96, top: -42, padding: "6px 10px", background: "#ffe3dd", border: `3px solid ${OL}`, fontSize: 14, color: OL, whiteSpace: "nowrap", zIndex: 2 }}>I&apos;m stuck.</div>
             )}
-            {state === "idle" && <div className="pixel" style={{ position: "absolute", left: 150, top: -14, fontSize: 16, color: "#b9a9b6" }}>z<span style={{ fontSize: 12 }}> z</span></div>}
-            <div style={{ position: "relative", height: 150 }}><Desk bot={d} state={state} /></div>
+            {state === "idle" && (
+              <div aria-hidden className="pixel" style={{ position: "absolute", left: 150, top: -14, fontSize: 16, color: "#b9a9b6" }}>
+                <span style={{ display: "inline-block", animation: "ns-steam 2.6s ease-out infinite" }}>z</span>
+                <span style={{ display: "inline-block", fontSize: 12, marginLeft: 3, animation: "ns-steam 2.6s 1.3s ease-out infinite" }}>z</span>
+              </div>
+            )}
+            <div style={{ position: "relative", height: 150 }}><Hop id={d.id}><Desk bot={d} state={state} /></Hop></div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 6 }}>
               <div className="pixel" style={{ display: "flex", alignItems: "center", gap: 7, background: "#1f1720", border: `3px solid ${OL}`, padding: "3px 9px", fontSize: 15, color: "#f3e7d3", letterSpacing: ".04em", whiteSpace: "nowrap" }}>
                 <span style={{ width: 8, height: 8, background: dot(d.status, d.hue) }} />
@@ -184,7 +189,7 @@ export function BotPanel({ desk, onClose }: { desk: DeskInfo; onClose: () => voi
                   {a.payload.body && <span style={{ fontSize: 13, color: "#776a5e", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{String(a.payload.body)}</span>}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <Button size="sm" disabled={!canApprove(a)} onClick={async () => { await approve(a.id, a.title); d.refresh(); }}>Approve</Button>
+                  <Button size="sm" disabled={!canApprove(a)} onClick={async () => { await approve(a.id, a.title, undefined, a.bot_id); d.refresh(); }}>Approve</Button>
                   <Button size="sm" kind="outline" onClick={() => setReview(a)}>Open</Button>
                 </div>
               </Card>
@@ -243,7 +248,7 @@ interface Desk { date: string; brief: { headline: string; content: string; statu
 
 // 01b Your desk: the brief on the clipboard, then everything waiting.
 export function DeskPanel({ onClose, asPage }: { onClose?: () => void; asPage?: boolean }) {
-  const { me, refreshOffice } = useApp();
+  const { me, office, refreshOffice } = useApp();
   const d = useApi<Desk>("/api/desk", { poll: 20_000 });
   const [review, setReview] = useState<number | null>(null);
   const items = d.data?.groups.flatMap((g) => g.items) ?? [];
@@ -265,6 +270,7 @@ export function DeskPanel({ onClose, asPage }: { onClose?: () => void; asPage?: 
           ) : d.data ? (
             // X2 Desk clear
             <div style={{ textAlign: "center", padding: "28px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <Crew desks={office?.desks ?? []} />
               <span className="pixel" style={{ fontSize: 20 }}>All clear</span>
               <span style={{ fontSize: 14, color: "#776a5e" }}>You&apos;ve approved everything. The team will leave anything new here tonight.</span>
             </div>

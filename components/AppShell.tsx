@@ -89,6 +89,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTimeout(() => setToasts((all) => all.filter((x) => x.id !== id)), seconds * 1000);
   }, []);
 
+  // a button whose action failed (components/ui.tsx) says so here, instead of nothing happening
+  useEffect(() => {
+    const on = (e: Event) => toast({ text: `Didn't work: ${(e as CustomEvent<string>).detail}`, seconds: 6 });
+    addEventListener("ns-error", on);
+    return () => removeEventListener("ns-error", on);
+  }, [toast]);
+
   // one object per real change, so screens using useApp() don't re-render for nothing
   const ctx = useMemo<Ctx | null>(() => (me.data ? {
     me: me.data,
@@ -209,6 +216,17 @@ export function useCheering(botId: string | undefined) {
     return () => removeEventListener("ns-cheer", on);
   }, [botId]);
   return n; // use as a key, so the animation restarts on every cheer
+}
+
+// Wrap a bot's sprite or tile: it hops, with a heart floating up, each time its work is approved.
+export function Hop({ id, children }: { id?: string; children: ReactNode }) {
+  const n = useCheering(id);
+  return (
+    <div key={n} style={{ position: "relative", animation: n ? "ns-cheer .7s ease-out 1" : undefined, transformOrigin: "50% 100%" }}>
+      {children}
+      {n > 0 && <span aria-hidden className="pixel" style={{ position: "absolute", left: "50%", top: -6, marginLeft: -6, color: "#ff8fa3", fontSize: 16, animation: "ns-steam .9s ease-out forwards", pointerEvents: "none" }}>♥</span>}
+    </div>
+  );
 }
 
 function Countdown({ until }: { until: number }) {

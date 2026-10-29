@@ -119,10 +119,10 @@ export default function Onboarding() {
         <div className="pixel" style={{ fontSize: 14, letterSpacing: ".12em", color: "var(--gold)" }}>YOU&apos;RE ALL SET</div>
         <h1 style={{ margin: 0, fontSize: 40 }}>Your team clocks in at {fmt(done.clocks_in)}</h1>
         <p style={{ margin: 0, color: "var(--night-muted)", fontSize: 17, maxWidth: 520 }}>{picked.has("inbox") ? "Penny is already reading today's mail. " : ""}Your first brief arrives tomorrow at {fmt(done.first_brief)}.</p>
-        <div style={{ display: "flex", gap: 24, margin: "18px 0" }}>
+        <div style={{ display: "flex", gap: 24, margin: "18px 0", flexWrap: "wrap", justifyContent: "center" }}>
           {catalog.filter((b) => picked.has(b.id)).slice(0, 3).map((b, i) => (
-            <div key={b.id} style={{ width: 200 }}>
-              <div style={{ position: "relative", height: 150 }}><Desk bot={{ kind: b.id, hue: b.hue, prop: b.prop }} state={i === 0 ? "typing" : "idle"} /></div>
+            <div key={b.id} style={{ width: 200, maxWidth: "40vw" }}>
+              <div style={{ position: "relative", height: 150, animation: `ns-cheer .8s ${0.3 + i * 0.15}s ease-in-out 2 both`, transformOrigin: "50% 100%" }}><Desk bot={{ kind: b.id, hue: b.hue, prop: b.prop }} state={i === 0 ? "typing" : "idle"} /></div>
               <div className="pixel" style={{ marginTop: 6, fontSize: 14 }}>{b.name.toUpperCase()} · {i === 0 && b.id === "inbox" ? "reading" : b.id === "brief" ? fmt(done.first_brief) : fmt(done.clocks_in)}</div>
             </div>
           ))}

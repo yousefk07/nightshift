@@ -41,7 +41,7 @@ export default function OfficePage() {
         </Link>
         {desks.map((d) => (
           <Link key={d.id} href={`/chats/${encodeURIComponent(d.kind)}`} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, borderRadius: 12, background: "#2d2330", color: "#f1e6d6", textDecoration: "none" }}>
-            <BotTile desk={d} size={40} />
+            <BotTile desk={d} size={40} bob={d.status === "working"} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="pixel" style={{ fontSize: 15 }}>{d.name.toUpperCase()} <span style={{ color: "#a8988a" }}>· {d.role.toUpperCase()}</span></div>
               <div style={{ fontSize: 12.5, color: d.status === "needs_you" ? "#f0c27a" : "#cbbcae", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.status === "working" ? d.status_text : mobileLabel(d.enabled ? d.status : "paused")}</div>

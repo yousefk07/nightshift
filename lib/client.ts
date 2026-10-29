@@ -31,22 +31,27 @@ export function useApi<T = any>(path: string | null, opts: { poll?: number } = {
   const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(!!path);
   const alive = useRef(true);
+  const seq = useRef(0); // only the newest request may land: an older answer arriving late is dropped
   const load = useCallback(async () => {
     if (!path) return;
+    const n = ++seq.current;
     try {
       const d = await api<T>(path);
-      if (alive.current) { setData(d); setError(null); }
+      if (alive.current && n === seq.current) { setData(d); setError(null); }
     } catch (e) {
-      if (alive.current) setError(e as ApiError);
+      if (alive.current && n === seq.current) setError(e as ApiError);
     } finally {
-      if (alive.current) setLoading(false);
+      if (alive.current && n === seq.current) setLoading(false);
     }
   }, [path]);
   useEffect(() => {
     alive.current = true;
     queueMicrotask(load);
-    const t = opts.poll ? setInterval(load, opts.poll) : null;
-    return () => { alive.current = false; if (t) clearInterval(t); };
+    // polling pauses while the tab is hidden and catches up the moment it's back
+    const t = opts.poll ? setInterval(() => { if (!document.hidden) load(); }, opts.poll) : null;
+    const back = () => { if (opts.poll && !document.hidden) load(); };
+    document.addEventListener("visibilitychange", back);
+    return () => { alive.current = false; if (t) clearInterval(t); document.removeEventListener("visibilitychange", back); };
   }, [load, opts.poll]);
   return { data, error, loading, refresh: load, setData };
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, clock, money } from "@/lib/client";
-import { useApp, useApprove, type DeskInfo } from "../AppShell";
+import { Hop, useApp, useApprove, type DeskInfo } from "../AppShell";
 import { Head } from "../pixel";
 import { Button, ErrorLine, Input, Label, TextArea } from "../ui";
 
@@ -14,11 +14,27 @@ export interface Action {
 }
 
 // The persona tile beside a name (36px, tinted with the bot's hue).
-export function BotTile({ desk, size = 36 }: { desk: Pick<DeskInfo, "kind" | "hue" | "prop"> | undefined; size?: number }) {
+export function BotTile({ desk, size = 36, bob }: { desk: (Pick<DeskInfo, "kind" | "hue" | "prop"> & { id?: string }) | undefined; size?: number; bob?: boolean }) {
   const hue = desk?.hue ?? 30;
   return (
-    <div style={{ width: size, height: size, flex: "none", borderRadius: size / 4, background: `oklch(0.92 0.045 ${hue})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {desk && <Head bot={desk} size={size >= 50 ? 4 : size >= 34 ? 2.5 : 2} />}
+    <Hop id={desk?.id}>
+      <div style={{ width: size, height: size, flex: "none", borderRadius: size / 4, background: `oklch(0.92 0.045 ${hue})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {desk && <div style={{ animation: bob ? "ns-bob .55s steps(2) infinite alternate" : undefined }}><Head bot={desk} size={size >= 50 ? 4 : size >= 34 ? 2.5 : 2} /></div>}
+      </div>
+    </Hop>
+  );
+}
+
+// A few of the team for an empty state: waving (a done moment) or bobbing (waiting for something to happen).
+export function Crew({ desks, motion = "wave", size = 44 }: { desks: (Pick<DeskInfo, "kind" | "hue" | "prop"> & { id?: string })[]; motion?: "wave" | "bob"; size?: number }) {
+  if (!desks.length) return null;
+  return (
+    <div aria-hidden style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 4 }}>
+      {desks.slice(0, 3).map((d, i) => (
+        <div key={d.id ?? d.kind} style={{ animation: motion === "wave" ? `ns-wave .9s ${i * 0.15}s ease-in-out 3` : `ns-bob .6s ${i * 0.2}s steps(2) infinite alternate`, transformOrigin: "50% 100%" }}>
+          <BotTile desk={d} size={size} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -158,7 +174,7 @@ export function Review({ a, onClose, onDone, pager }: { a: Action; onClose: () =
             </>
           ) : (
             <>
-              <Button disabled={!can || busy} onClick={() => run(() => approve(a.id, a.title, edited ? fields : undefined))}>{isEmail ? "Approve & send" : a.risk === "money" ? "Approve" : "Approve"}</Button>
+              <Button disabled={!can || busy} onClick={() => run(() => approve(a.id, a.title, edited ? fields : undefined, a.bot_id))}>{isEmail ? "Approve & send" : a.risk === "money" ? "Approve" : "Approve"}</Button>
               <Button kind="outline" disabled={me.user.role === "viewer"} onClick={() => setEditing((e) => !e)}>{editing ? "Done editing" : "Edit"}</Button>
               <Button kind="outline" disabled={me.user.role === "viewer"} onClick={() => setAsking(true)}>Ask {bot?.name ?? "the bot"}</Button>
               <span style={{ flex: 1 }} />
@@ -210,7 +226,7 @@ export function DraftCard({ a, onChanged, collapsed }: { a: Action; onChanged: (
       </div>
       {!done && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderTop: "1px solid #ece3d6" }}>
-          <Button style={btn} disabled={!can} onClick={async () => { await approve(a.id, a.title); onChanged(); }}>{email ? "Approve & send" : "Approve"}</Button>
+          <Button style={btn} disabled={!can} onClick={async () => { await approve(a.id, a.title, undefined, a.bot_id); onChanged(); }}>{email ? "Approve & send" : "Approve"}</Button>
           <Button kind="outline" style={btn} disabled={me.user.role === "viewer"} onClick={() => setOpen(true)}>Edit</Button>
           <Button kind="ghost" style={{ ...btn, marginLeft: "auto", color: "#6a5d52" }} disabled={me.user.role === "viewer"} onClick={async () => { await api(`/api/actions/${a.id}`, { json: { decision: "discard" } }); toast({ text: "Discarded." }); onChanged(); }}>Discard</Button>
         </div>

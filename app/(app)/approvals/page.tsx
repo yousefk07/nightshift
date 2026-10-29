@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useApp, useApprove } from "@/components/AppShell";
-import { BotTile, cardDetail, Review, useCanApprove, useDesks, type Action } from "@/components/office/cards";
+import { useApp, useApprove, cheerFor } from "@/components/AppShell";
+import { BotTile, cardDetail, Review, useCanApprove, useDesks, type Action, Crew } from "@/components/office/cards";
 import { Button } from "@/components/ui";
 import { api, useApi } from "@/lib/client";
 
@@ -11,7 +11,7 @@ import { api, useApi } from "@/lib/client";
 interface Desk { brief: { headline: string; content: string; status: string } | null; minutes: number; groups: { bot: string; key: string | null; items: Action[] }[] }
 
 export default function ApprovalsPage() {
-  const { me, refreshOffice, toast } = useApp();
+  const { me, refreshOffice, toast, office } = useApp();
   const approve = useApprove();
   const can = useCanApprove();
   const { byId } = useDesks();
@@ -30,9 +30,10 @@ export default function ApprovalsPage() {
   }
 
   const approveGroup = async (group: Action[]) => {
-    if (group.length === 1) return approve(group[0].id, group[0].title).then(() => d.refresh());
+    if (group.length === 1) return approve(group[0].id, group[0].title, undefined, group[0].bot_id).then(() => d.refresh());
     const { results } = await api<{ results: { id: string; error?: string }[] }>("/api/actions/batch", { json: { decision: "approve", ids: group.map((a) => a.id) } });
     const ok = results.filter((r) => !r.error).map((r) => r.id);
+    for (const b of new Set(group.filter((a) => ok.includes(a.id)).map((a) => a.bot_id))) cheerFor(b);
     toast({ text: `Approved ${ok.length}.`, undo: async () => { for (const id of ok) await api(`/api/actions/${id}/undo`, { method: "POST" }); d.refresh(); } });
     refreshOffice();
     d.refresh();
@@ -42,7 +43,7 @@ export default function ApprovalsPage() {
     <div style={{ flex: 1, background: "#f8f2e9", color: "#2b2320", padding: "22px 16px 28px", display: "flex", flexDirection: "column", gap: 16, maxWidth: 640, width: "100%", margin: "0 auto" }}>
       <div>
         <div style={{ fontSize: 24, fontWeight: 700 }}>{hello}{first ? `, ${first}` : ""}</div>
-        <div style={{ fontSize: 14.5, color: "#776a5e" }}>{items.length ? `${items.length} ${items.length === 1 ? "thing is" : "things are"} waiting. About ${d.data?.minutes ?? 1} minute${d.data?.minutes === 1 ? "" : "s"}.` : "Nothing is waiting."}</div>
+        <div style={{ fontSize: 14.5, color: "#776a5e" }}>{!d.data ? "Checking what's waiting…" : items.length ? `${items.length} ${items.length === 1 ? "thing is" : "things are"} waiting. About ${d.data?.minutes ?? 1} minute${d.data?.minutes === 1 ? "" : "s"}.` : "Nothing is waiting."}</div>
       </div>
 
       {d.data?.brief && (
@@ -77,6 +78,7 @@ export default function ApprovalsPage() {
       {d.data && !items.length && (
         // X2 Desk clear
         <div style={{ textAlign: "center", padding: "40px 8px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <Crew desks={office?.desks ?? []} size={48} />
           <span className="pixel" style={{ fontSize: 22 }}>All clear</span>
           <span style={{ fontSize: 14.5, color: "#776a5e" }}>You&apos;ve approved everything. The team will leave anything new here tonight.</span>
           <Link href="/desk" style={{ fontSize: 14 }}>Re-read this morning&apos;s brief</Link>

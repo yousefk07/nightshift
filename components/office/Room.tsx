@@ -7,7 +7,7 @@ import { useApp, type DeskInfo } from "../AppShell";
 import { TypingDots } from "../pixel";
 import { Prose } from "../Prose";
 import { Button } from "../ui";
-import { BotTile, Review, useCanApprove, type Action } from "./cards";
+import { BotTile, Review, useCanApprove, type Action, Crew } from "./cards";
 
 // 03 Bot room: where the team hands work to each other, and where the owner can jump in.
 
@@ -135,6 +135,7 @@ export function RoomView() {
             {room && msgs.filter((m) => m.role !== "system").length === 0 && (
               // X3 Bot room, first day
               <div style={{ margin: "auto 0", textAlign: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+                <Crew desks={desks} motion="bob" />
                 <span className="pixel" style={{ fontSize: 20 }}>No handoffs yet</span>
                 <span style={{ fontSize: 14.5, color: "#776a5e", maxWidth: 440 }}>When one bot passes work to another, like Penny spotting an invoice question for Ledger, it shows up here.</span>
               </div>
@@ -200,7 +201,7 @@ export function RoomView() {
         <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: "#716459" }}>In the room</div>
         {desks.map((d) => (
           <div key={d.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <BotTile desk={d} />
+            <BotTile desk={d} bob={d.status === "working"} />
             <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{d.name}</span>
               <span style={{ fontSize: 12.5, color: d.status === "needs_you" ? "#8a4f14" : "#776a5e" }}>{!d.enabled ? "Paused" : d.status === "needs_you" ? "Waiting on you" : d.status === "idle" && d.next_run_at ? `Idle until ${clock(d.next_run_at, tz)}` : d.status_text || "Idle"}</span>
