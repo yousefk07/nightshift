@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, clock, money } from "@/lib/client";
-import { useApp, type DeskInfo } from "../AppShell";
+import { useApp, type DeskInfo, useRename } from "../AppShell";
 import { TypingDots } from "../pixel";
 import { Prose } from "../Prose";
 import { Button } from "../ui";
@@ -65,6 +65,7 @@ function ApprovalGroup({ items, onChanged }: { items: Action[]; onChanged: () =>
 }
 
 export function RoomView() {
+  const rename = useRename();
   const { office, me, onLive, refreshOffice } = useApp();
   const [room, setRoom] = useState<Room | null>(null);
   const [pending, setPending] = useState<Action[]>([]);
@@ -137,7 +138,7 @@ export function RoomView() {
               <div style={{ margin: "auto 0", textAlign: "center", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
                 <Crew desks={desks} motion="bob" />
                 <span className="pixel" style={{ fontSize: 20 }}>No handoffs yet</span>
-                <span style={{ fontSize: 14.5, color: "#776a5e", maxWidth: 440 }}>When one bot passes work to another, like Penny spotting an invoice question for Ledger, it shows up here.</span>
+                <span style={{ fontSize: 14.5, color: "#776a5e", maxWidth: 440 }}>When one bot passes work to another, like {rename("Penny")} spotting an invoice question for Ledger, it shows up here.</span>
               </div>
             )}
             {msgs.map((m, i) => {

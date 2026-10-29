@@ -21,8 +21,9 @@ export interface Me {
 export interface DeskInfo {
   id: string; kind: string; name: string; role: string; title: string; hue: number; prop: string;
   status: "idle" | "working" | "needs_you" | "blocked" | "failed" | "paused"; status_text: string; waiting: number; next_run_at: string | null; approval: "ask" | "auto"; enabled: boolean;
+  chips?: string[] | null; // chat suggestions in the industry's words
 }
-export interface Office { working: number; needs_you: string[]; blocked: { name: string; why: string }[]; waiting_total: number; desks: DeskInfo[] }
+export interface Office { working: number; needs_you: string[]; blocked: { name: string; why: string }[]; waiting_total: number; desks: DeskInfo[]; team: string | null; names: Record<string, string> }
 
 interface Ctx {
   me: Me;
@@ -38,6 +39,15 @@ export const useApp = () => {
   if (!c) throw new Error("useApp outside AppShell");
   return c;
 };
+
+// Copy that names a default bot ("So Penny can read your mail") in this business's own names ("So Mirela can…").
+// Works outside the app shell too (onboarding passes the names it has).
+const DEFAULT_OF: Record<string, string> = { Penny: "inbox", Sage: "research", Ledger: "invoices", Nudge: "leads", Dawn: "brief" };
+export function useRename(names?: Record<string, string>) {
+  const c = useContext(AppCtx);
+  const map = names ?? c?.office?.names;
+  return useCallback((text: string) => (map ? text.replace(/\b(Penny|Sage|Ledger|Nudge|Dawn)\b/g, (n) => map[DEFAULT_OF[n]] ?? n) : text), [map]);
+}
 
 const TABS = [
   { href: "/office", label: "Office" },
@@ -122,7 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/office" style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--night-ink)", textDecoration: "none" }}>
               <Logo tone="dark" size={18} />
             </Link>
-            <span style={{ color: "#a99ba1", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me.data.workspace.name}</span>
+            <span style={{ color: "#a99ba1", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{me.data.workspace.name}{o?.team && <span className="ns-hide-sm" style={{ color: "#7f7078" }}> · your {o.team}</span>}</span>
           </div>
           <nav className="ns-tabs" style={{ display: "flex", gap: 4, background: "#2d2330", padding: 4, borderRadius: 10, fontSize: 13.5 }}>
             {TABS.map((t) => (

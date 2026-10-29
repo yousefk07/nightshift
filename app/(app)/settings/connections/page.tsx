@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApp } from "@/components/AppShell";
+import { useApp, useRename } from "@/components/AppShell";
 import { ConnectSheet, KINDS, PROVIDER_LABEL, Tile, type Kind } from "@/components/Connect";
 import { Page } from "@/components/settings";
 import { Button, Pill } from "@/components/ui";
@@ -13,6 +13,7 @@ interface Conn { id: string; provider: string; kinds: string[]; account: string;
 const OAUTH = new Set(["google", "microsoft", "quickbooks", "xero", "freshbooks"]);
 
 export default function ConnectionsPage() {
+  const rename = useRename();
   const { me, toast, refreshMe } = useApp();
   const c = useApi<{ connections: Conn[]; missing: { kind: string; needed_by: string[] }[] }>("/api/connections");
   const owner = me.user.role === "owner";
@@ -45,7 +46,7 @@ export default function ConnectionsPage() {
                   {mine.length > 0 && <Pill tone={healthy ? "green" : "red"}>{healthy ? "Connected" : "Needs attention"}</Pill>}
                   {!mine.length && needed.length > 0 && <Pill tone="amber">{needed.join(" and ")} {needed.length > 1 ? "need" : "needs"} this</Pill>}
                 </div>
-                <div style={{ fontSize: 13, color: "#776a5e", marginTop: 3 }}>{k.why}</div>
+                <div style={{ fontSize: 13, color: "#776a5e", marginTop: 3 }}>{rename(k.why)}</div>
               </div>
 
               {mine.length > 0 ? (

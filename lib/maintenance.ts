@@ -1,4 +1,4 @@
-import { botDef } from "./bots";
+import { botDef, castOf } from "./bots";
 import { hubspotPull, sheetsPull } from "./connectors/crm";
 import { briefEmail, sendMail } from "./email";
 import { briefDue, runNow } from "./engine/flows";
@@ -54,7 +54,8 @@ async function deliverBrief(store: Store, ws: Workspace, day: string, headline: 
   const url = `${process.env.APP_URL ?? ""}/`;
   if (channels.includes("email")) {
     const members = (await store.members(ws.id)).filter((m) => m.role === "owner" || m.role.startsWith("approver"));
-    const mail = briefEmail({ day, headline, content, pending: pending.length, url });
+    const writer = botDef("brief", ws.industry); // the cast: "Juno, your morning huddle bot"
+    const mail = briefEmail({ day, headline, content, pending: pending.length, url, writer: castOf(ws.industry) ? { name: writer.name, role: writer.role } : undefined });
     for (const m of members) if (m.email) await sendMail({ to: m.email, ...mail }).catch((e) => console.error("brief mail", e));
   }
   if (channels.includes("push") || channels.includes("app")) {

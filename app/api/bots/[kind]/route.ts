@@ -26,7 +26,7 @@ export const GET = route<Ctx>(async (_req, me, { params }) => {
   const bot = await find(me.ws.id, params);
   const store = supabaseStore();
   const [runs, pending] = await Promise.all([store.runs(me.ws.id, { botId: bot.id, limit: 10 }), store.actions(me.ws.id, "pending")]);
-  const t = botDef(bot.kind);
+  const t = botDef(bot.kind, me.ws.industry);
   return Response.json({
     bot,
     template: { name: t.name, role: t.role, title: t.title, hue: t.hue, prop: t.prop, category: t.category, needs: t.needs, schedule: t.schedule },

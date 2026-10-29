@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useApp } from "@/components/AppShell";
+import { useApp, useRename } from "@/components/AppShell";
 import { Celebrate } from "@/components/Celebrate";
 import { Meter, Page, Row, Section } from "@/components/settings";
 import { Button, ErrorLine, Pill } from "@/components/ui";
@@ -27,6 +27,7 @@ const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString("en-US
 const names = (xs: string[]) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 export default function BillingPage() {
+  const rename = useRename();
   const { me, office, refreshMe } = useApp();
   const router = useRouter();
   const b = useApi<Billing>("/api/billing");
@@ -123,7 +124,7 @@ export default function BillingPage() {
                 <div key={p.id} style={{ border: current ? "2px solid var(--good)" : p.popular && !paid ? "2px solid #2b2320" : "1px solid #e4d9ca", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 8, background: "#fff" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span style={{ fontWeight: 700, fontSize: 17 }}>{p.name}</span>{current ? <Pill tone="green">Your plan</Pill> : p.popular && !paid ? <Pill>Most picked</Pill> : null}</div>
                   <div style={{ fontSize: 26, fontWeight: 700 }}>${price(p.id, period)}<span style={{ fontSize: 14, fontWeight: 400, color: "#776a5e" }}>/{period === "month" ? "mo" : "yr"}</span></div>
-                  <div style={{ fontSize: 13.5, color: "#5d5148", flex: 1 }}>{p.line}</div>
+                  <div style={{ fontSize: 13.5, color: "#5d5148", flex: 1 }}>{rename(p.line)}</div>
                   {current ? <Button kind="outline" disabled>Current plan</Button>
                     : <Button disabled={busy} kind={paid ? "outline" : "dark"} onClick={() => go("/api/billing/checkout", { plan: p.id, interval: period })}>{paid ? `Switch to ${p.name}` : `Choose ${p.name}`}</Button>}
                 </div>

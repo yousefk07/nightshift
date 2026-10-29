@@ -1,4 +1,4 @@
-import { applySubscription, verifyWebhook } from "@/lib/billing";
+import { applyLatest, applySubscription, verifyWebhook } from "@/lib/billing";
 import { supabaseStore } from "@/lib/store-supabase";
 
 // Stripe tells us when a subscription starts, changes or ends. Signed with STRIPE_WEBHOOK_SECRET.
@@ -9,8 +9,10 @@ export async function POST(req: Request) {
   const store = supabaseStore();
   if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
     const sub = event.data.object;
-    if (event.type === "customer.subscription.deleted") sub.status = "canceled";
-    const ws = await applySubscription(store, sub);
+    const ws = await applyLatest(store, sub.id).catch(() => {
+      if (event.type === "customer.subscription.deleted") sub.status = "canceled";
+      return applySubscription(store, sub); // Stripe unreachable: the event is the best we have
+    });
     if (ws) await store.log(ws, { actor_type: "system", action: "billing", target: event.type, data: { status: sub.status } });
   }
   return Response.json({ received: true });

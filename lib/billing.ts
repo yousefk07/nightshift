@@ -150,3 +150,10 @@ export async function changePlan(store: Store, ws: Workspace, plan: PaidPlan, in
   await applySubscription(store, { ...updated, metadata: { ...updated.metadata, workspace_id: ws.id, plan } });
   return subView(updated);
 }
+
+// For the webhook: events can arrive late or out of order (an "updated" after a "deleted"), so the subscription
+// is read fresh from Stripe and that is what's applied.
+export async function applyLatest(store: Store, subId: string) {
+  const sub = await stripe(`/subscriptions/${subId}`);
+  return applySubscription(store, sub);
+}

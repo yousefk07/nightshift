@@ -12,7 +12,7 @@ import { api, ApiError } from "@/lib/client";
 // O1-O5: Your business, Connect tools, Pick your team, Approval rules, then "Your team clocks in at 7 PM".
 
 interface Me { user: { email: string; role: string }; workspace: { name: string; about: string; industry: string; team_size: string | null; pain_points: string[]; timezone: string; onboarding_step: number; onboarded_at: string | null; shift_start: string; brief_prefs: { time: string } }; plan: { limits: { bots: number } }; connections: { provider: string; kinds: string[]; account: string; status: string }[] }
-interface CatalogBot { id: string; name: string; role: string; title: string; hue: number; prop: string; needs: string[]; missing: string[]; suggested: boolean; hired: boolean; industries: string[] }
+interface CatalogBot { id: string; name: string; role: string; title: string; hue: number; prop: string; needs: string[]; missing: string[]; suggested: boolean; hired: boolean; industries: string[]; built_for?: string | null }
 
 const STEPS = ["Your business", "Connect tools", "Pick your team", "Approval rules"];
 const PAINS = ["Answering email", "Chasing invoices", "Following up leads", "Researching suppliers", "Keeping track of it all"];
@@ -118,7 +118,7 @@ export default function Onboarding() {
       <main style={{ minHeight: "100vh", background: "var(--night)", color: "var(--night-ink)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 24, textAlign: "center" }}>
         <div className="pixel" style={{ fontSize: 14, letterSpacing: ".12em", color: "var(--gold)" }}>YOU&apos;RE ALL SET</div>
         <h1 style={{ margin: 0, fontSize: 40 }}>Your team clocks in at {fmt(done.clocks_in)}</h1>
-        <p style={{ margin: 0, color: "var(--night-muted)", fontSize: 17, maxWidth: 520 }}>{picked.has("inbox") ? "Penny is already reading today's mail. " : ""}Your first brief arrives tomorrow at {fmt(done.first_brief)}.</p>
+        <p style={{ margin: 0, color: "var(--night-muted)", fontSize: 17, maxWidth: 520 }}>{picked.has("inbox") ? `${catalog.find((b) => b.id === "inbox")?.name ?? "Penny"} is already reading today's mail. ` : ""}Your first brief arrives tomorrow at {fmt(done.first_brief)}.</p>
         <div style={{ display: "flex", gap: 24, margin: "18px 0", flexWrap: "wrap", justifyContent: "center" }}>
           {catalog.filter((b) => picked.has(b.id)).slice(0, 3).map((b, i) => (
             <div key={b.id} style={{ width: 200, maxWidth: "40vw" }}>
@@ -247,7 +247,7 @@ export default function Onboarding() {
                       style={{ display: "flex", gap: 12, alignItems: "flex-start", textAlign: "left", padding: 14, borderRadius: 12, background: on ? "#fffbf4" : "transparent", border: on ? "2px solid #2b2320" : "1px solid #d5c7b6", color: "#2b2320" }}>
                       <div style={{ width: 44, height: 44, flex: "none", borderRadius: 11, background: `oklch(0.92 0.045 ${b.hue})`, display: "grid", placeItems: "center" }}><Head bot={{ kind: b.id, hue: b.hue }} size={2.6} /></div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700 }}>{b.name} <span style={{ fontWeight: 400, color: "#776a5e" }}>· {b.role}</span></div>
+                        <div style={{ fontSize: 15, fontWeight: 700 }}>{b.name} <span style={{ fontWeight: 400, color: "#776a5e" }}>· {b.role}</span>{b.built_for && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: "#1f6a64", background: "#d6ecea", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap" }}>Built for {b.built_for}</span>}</div>
                         <div style={{ fontSize: 13, color: "#5d5148", lineHeight: 1.45 }}>{b.title}</div>
                         {b.missing.length > 0 && <div style={{ fontSize: 12, color: "#8a4f14", marginTop: 4 }}>Needs {b.missing.map((m) => (m === "crm" ? "a CRM or lead list" : m === "web" ? "web search" : m)).join(", ")}</div>}
                       </div>
@@ -282,7 +282,7 @@ export default function Onboarding() {
                 </div>
               </div>
               {[
-                { k: "pause_on_dispute" as const, title: "Pause reminders when a client disputes an invoice", sub: "Recommended. Ledger stops and hands the dispute to you." },
+                { k: "pause_on_dispute" as const, title: "Pause reminders when a client disputes an invoice", sub: `Recommended. ${catalog.find((b) => b.id === "invoices")?.name ?? "Ledger"} stops and hands the dispute to you.` },
                 { k: "alert_phone" as const, title: "Alert my phone about disputes and complaints right away", sub: "Even during quiet hours. Turn on notifications when the app asks." },
                 { k: "invite" as const, title: "Let someone else approve email drafts too", sub: "We'll send them an invite." },
               ].map((r) => (

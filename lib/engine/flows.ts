@@ -1,4 +1,4 @@
-import { botDef, starters, taskFor, TEMPLATES, type BotTemplate, type Industry } from "../bots";
+import { botDef, chipsFor, starters, taskFor, teamLabel, TEMPLATES, type BotTemplate, type Industry } from "../bots";
 import type { Store } from "../store";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
@@ -29,19 +29,19 @@ export async function chatWithBot(
 
 // ---- the bot room ----
 // "@Penny ..." or "@inbox ..." gives that bot a job, which runs on the next tick and answers in the room.
-export function mentions(text: string, bots: Bot[]) {
+export function mentions(text: string, bots: Bot[], industry?: string) {
   const found = new Set<Bot>();
   for (const m of text.matchAll(/@([\p{L}][\p{L}\d_.-]*(?:\s+brief)?)/gu)) {
     const word = m[1].toLowerCase().replace(/[.,!?]+$/, "");
     const flat = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const bot = bots.find((b) => b.kind === word || b.name.toLowerCase() === word || flat(b.name) === flat(word) || flat(roleOf(b)) === flat(word));
+    const bot = bots.find((b) => b.kind === word || b.name.toLowerCase() === word || flat(b.name) === flat(word) || flat(roleOf(b)) === flat(word) || flat(roleOf(b, industry)) === flat(word));
     if (bot) found.add(bot);
   }
   return [...found];
 }
-const roleOf = (b: Bot) => {
+const roleOf = (b: Bot, industry?: string) => {
   try {
-    return botDef(b.kind).role;
+    return botDef(b.kind, industry).role;
   } catch {
     return "";
   }
@@ -50,7 +50,7 @@ const roleOf = (b: Bot) => {
 export async function postInRoom(store: Store, ws: Workspace, text: string, userId: string | null = null) {
   const room = await store.room(ws.id);
   const bots = (await store.bots(ws.id)).filter((b) => b.enabled);
-  const named = mentions(text, bots);
+  const named = mentions(text, bots, ws.industry);
   const message = await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "owner", user_id: userId, content: text, mentions: named.map((b) => b.id) });
   const queued: Run[] = [];
   for (const bot of named) {
@@ -174,7 +174,7 @@ export async function executeDue(store: Store, limit = 20) {
 export async function runNow(store: Store, ws: Workspace, kind: BotKind, task?: string, onEvent?: (e: EngineEvent) => void, trigger: Run["trigger"] = "manual") {
   const bot = await store.bot(ws.id, kind);
   if (!bot) throw new Error(`There's no ${kind} on your team.`);
-  const def = botDef(kind);
+  const def = botDef(kind, ws.industry);
   const input = task || taskFor(def, bot.last_run_at);
   const room = await store.room(ws.id);
   const run = await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger, input, thread_id: room.id });
@@ -293,7 +293,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
 
 // ---- hiring ----
 export function hireRow(ws: Workspace, templateId: string, now = new Date()) {
-  const def = botDef(templateId);
+  const def = botDef(templateId, ws.industry); // the cast's name for this business
   return { kind: def.id, name: def.name, approval: "ask" as const, next_run_at: nextRun(def.schedule, ws.timezone, now)?.toISOString() ?? null };
 }
 
@@ -320,7 +320,7 @@ export async function hire(store: Store, ws: Workspace, templateId: string, who:
   const bot = await store.hireBot(ws.id, hireRow(ws, templateId));
   await store.log(ws.id, { actor_type: "user", actor_id: who, action: "hired", target: bot.name, data: { kind: templateId } });
   const room = await store.room(ws.id);
-  await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "system", kind: "event", content: `${bot.name} (${botDef(templateId).role}) joined the team.` });
+  await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "system", kind: "event", content: `${bot.name} (${botDef(templateId, ws.industry).role}) joined the team.` });
   return bot;
 }
 
@@ -329,10 +329,10 @@ export async function officeView(store: Store, ws: Workspace) {
   const [bots, pending] = await Promise.all([store.bots(ws.id), store.actions(ws.id, "pending")]);
   const desks = bots.map((b) => {
     let t: ReturnType<typeof botDef> | null = null;
-    try { t = botDef(b.kind); } catch {}
+    try { t = botDef(b.kind, ws.industry); } catch {}
     const waiting = pending.filter((a) => a.bot_id === b.id).length;
     return {
-      id: b.id, kind: b.kind, name: b.name, role: t?.role ?? "", title: t?.title ?? "", hue: t?.hue ?? 30, prop: t?.prop ?? "papers",
+      id: b.id, kind: b.kind, name: b.name, role: t?.role ?? "", title: t?.title ?? "", hue: t?.hue ?? 30, prop: t?.prop ?? "papers", chips: chipsFor(b.kind, ws.industry),
       status: b.enabled ? b.status : "paused", status_text: b.enabled ? b.status_text : "Paused", waiting, next_run_at: b.next_run_at, approval: b.approval, enabled: b.enabled,
     };
   });
@@ -341,6 +341,8 @@ export async function officeView(store: Store, ws: Workspace) {
     needs_you: desks.filter((d) => d.status === "needs_you" || d.waiting > 0).map((d) => d.name),
     blocked: desks.filter((d) => d.status === "blocked").map((d) => ({ name: d.name, why: d.status_text })),
     waiting_total: pending.length,
+    team: teamLabel(ws.industry), // "dental front office"
+    names: Object.fromEntries(["inbox", "research", "invoices", "leads", "brief"].map((id) => [id, botDef(id, ws.industry).name])), // the cast, hired or not
     desks,
   };
 }

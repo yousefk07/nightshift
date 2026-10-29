@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApp } from "@/components/AppShell";
+import { useApp, useRename } from "@/components/AppShell";
 import { Page, Row, Section } from "@/components/settings";
 import { Button, Input, Select, Toggle } from "@/components/ui";
 import { api, useApi } from "@/lib/client";
@@ -13,6 +13,7 @@ const DAYSETS: [string, number[]][] = [["Every day", [0, 1, 2, 3, 4, 5, 6]], ["W
 const CHANNEL_LABEL: Record<string, string> = { app: "App", email: "Email", push: "Phone" };
 
 export default function NotificationsPage() {
+  const rename = useRename();
   const { me, toast } = useApp();
   const p = useApi<Prefs>("/api/notifications/prefs");
   const [mine, setMine] = useState<Prefs["mine"] | null>(null);
@@ -54,7 +55,7 @@ export default function NotificationsPage() {
   return (
     <Page title="Notifications & morning brief" sub="The calmer the better. Most things can wait for the brief." action={<Button onClick={save}>Save</Button>}>
       <Section title="Morning brief">
-        <Row first title="Deliver at" sub="Dawn drafts it an hour before and keeps it up to date until then.">
+        <Row first title="Deliver at" sub={rename("Dawn drafts it an hour before and keeps it up to date until then.")}>
           <Input type="time" disabled={!owner} value={brief.time} onChange={(e) => setBrief({ ...brief, time: e.target.value })} style={{ width: 140 }} />
         </Row>
         <Row title="Days">

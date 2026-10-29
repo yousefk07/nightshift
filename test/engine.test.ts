@@ -328,3 +328,15 @@ describe("screens", () => {
     expect(db.messages.at(-1)?.content).toMatch(/joined the team/);
   });
 });
+
+describe("industry casts in the office", () => {
+  it("a new dental workspace hires its own cast, and the office says whose team it is", async () => {
+    const { store, ws } = memStore({ industry: "dental_general" });
+    const { defaultBots } = await import("../lib/engine/flows");
+    const { botDef } = await import("../lib/bots");
+    const rows = defaultBots(ws);
+    expect(rows.find((r) => r.kind === "inbox")?.name).toBe(botDef("inbox", "dental_general").name);
+    const office = await officeView(store, ws);
+    expect(office.team).toBe("dental front office");
+  });
+});

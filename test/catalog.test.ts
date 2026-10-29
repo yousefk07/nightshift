@@ -58,3 +58,37 @@ describe("bot catalog", () => {
     }
   });
 });
+
+// The industry casts: every business but "Any business" gets its own names and jobs for the core five.
+describe("industry casts", () => {
+  it("every industry has a full cast with five distinct names, none of them the default team's", async () => {
+    const { CASTS } = await import("../lib/bots");
+    for (const industry of Object.keys(INDUSTRIES).filter((i) => i !== "general")) {
+      const c = CASTS[industry as Industry];
+      expect(c, industry).toBeTruthy();
+      const names = Object.values(c!.bots).map((b) => b.name);
+      expect(new Set(names).size, `${industry} names`).toBe(5);
+      for (const n of names) expect(["Penny", "Sage", "Ledger", "Nudge", "Dawn"], `${industry}: ${n}`).not.toContain(n);
+      expect(c!.people && c!.jobs && c!.urgent && c!.today, industry).toBeTruthy();
+    }
+  });
+
+  it("a dentist's front desk is its own bot, in dental words, handing billing to its own billing bot", async () => {
+    const { botDef } = await import("../lib/bots");
+    const desk = botDef("inbox", "dental_general"), billing = botDef("invoices", "dental_general");
+    expect(desk.name).not.toBe("Penny");
+    expect(desk.role).toBe("Front desk");
+    expect(desk.title).toMatch(/patients/);
+    expect(desk.instructions).toContain(billing.name); // "hand invoice questions to Rosa", not to Ledger
+    expect(desk.instructions).not.toMatch(/\bLedger\b/);
+    expect(desk.instructions).toMatch(/tooth pain/);
+    expect(desk.tools).toEqual(botDef("inbox").tools); // same skills, new words
+    expect(botDef("brief", "hvac").instructions).toContain("Today's service calls");
+  });
+
+  it("'Any business' keeps the default team", async () => {
+    const { botDef } = await import("../lib/bots");
+    expect(botDef("inbox", "general").name).toBe("Penny");
+    expect(botDef("invoices").name).toBe("Ledger");
+  });
+});

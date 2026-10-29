@@ -19,10 +19,10 @@ export interface RunResult {
 }
 
 // Who else is on the team, so the bot knows whom to hand work to.
-function teamLine(bot: Bot, team: Bot[]) {
+function teamLine(bot: Bot, team: Bot[], industry: string) {
   const others = team.filter((b) => b.id !== bot.id).map((b) => {
     try {
-      const t = botDef(b.kind);
+      const t = botDef(b.kind, industry);
       return `${b.kind} (${b.name}, ${t.role}: ${t.title})`;
     } catch {
       return `${b.kind} (${b.name})`;
@@ -32,7 +32,7 @@ function teamLine(bot: Bot, team: Bot[]) {
 }
 
 async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[], team: Bot[]) {
-  const def = botDef(bot.kind);
+  const def = botDef(bot.kind, ws.industry);
   const [memories, members] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id, { emails: false })]);
   const owner = members.find((m) => m.role === "owner");
   const messages = tools.filter((t) => t.risk === "message").map((t) => t.name);
@@ -49,7 +49,7 @@ async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[]
       : "",
     money.length ? `Money tools (${money.join(", ")}) always wait for the owner's approval, whatever else you're allowed to do.` : "",
     "If a tool says someone is on hold, on the do-not-contact list or was already contacted this week, respect it: don't try another way to reach them.",
-    teamLine(bot, team),
+    teamLine(bot, team, ws.industry),
     memories.length ? `What the team knows (shared memory; add lasting facts with remember):\n${memories.map((m) => `- ${m.subject ? m.subject + ": " : ""}${m.fact}`).join("\n")}` : "",
     "Write for a busy owner: start with one plain sentence that says what happened, then at most 6 short '- ' bullets. Use **bold** only for a label at the start of a bullet. No tables, no headings, no sign-off.",
     "Be brief and concrete. Never invent facts, emails, amounts or sources; if you don't know, say so. Never give medical, legal or financial advice to customers.",
@@ -88,7 +88,7 @@ export async function runBot(
 ): Promise<RunResult> {
   const { ws, bot, run } = args;
   const emit = args.onEvent ?? (() => {});
-  const def = botDef(bot.kind);
+  const def = botDef(bot.kind, ws.industry);
   const conns = await store.connections(ws.id);
   const tools = toolsFor(def.tools, conns);
   const byName = new Map(tools.map((t) => [t.name, t]));

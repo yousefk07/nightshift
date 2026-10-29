@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useApp } from "@/components/AppShell";
+import { useApp, useRename } from "@/components/AppShell";
 import { BotTile } from "@/components/office/cards";
 import { Head } from "@/components/pixel";
 import { Locked, Page, Row, Section } from "@/components/settings";
@@ -10,7 +10,7 @@ import { api, clock, useApi } from "@/lib/client";
 
 // S2 Bots & approvals: who's on shift, when they work, what they can touch; guardrails; the never-contact list;
 // and hiring from the catalog.
-interface CatalogBot { id: string; name: string; role: string; title: string; hue: number; prop: string; category: string; schedule: { everyMinutes?: number; dailyAt?: string } | null; needs: string[]; missing: string[]; hired: boolean; suggested: boolean }
+interface CatalogBot { id: string; name: string; role: string; title: string; hue: number; prop: string; category: string; schedule: { everyMinutes?: number; dailyAt?: string } | null; needs: string[]; missing: string[]; hired: boolean; suggested: boolean; built_for?: string | null }
 interface Catalog { industries: Record<string, string>; categories: Record<string, string>; industry: string; bots: CatalogBot[] }
 
 // "Always on", "When asked", "Nightly, 1 AM", "Daily, 9 AM"
@@ -24,6 +24,7 @@ const shift = (s: CatalogBot["schedule"]) => {
 const ACCESS: Record<string, string> = { email: "email (read + draft)", calendar: "calendar", accounting: "invoices, payments (read)", crm: "contacts", store: "orders, stock", web: "public web" };
 
 export default function BotsPage() {
+  const rename = useRename();
   const { me, office, refreshOffice, toast } = useApp();
   const owner = me.user.role === "owner";
   const cat = useApi<Catalog>("/api/catalog");
@@ -90,7 +91,7 @@ export default function BotsPage() {
       )}
 
       <Section title="Guardrails">
-        <Row first title="Pause reminders automatically when a client disputes an invoice" sub="Ledger stops and hands the dispute to you.">
+        <Row first title="Pause reminders automatically when a client disputes an invoice" sub={rename("Ledger stops and hands the dispute to you.")}>
           <Toggle label="Pause on dispute" disabled={!owner} on={dnc.data?.guardrails.pause_on_dispute !== false} onChange={(v) => guard("pause_on_dispute", v)} />
         </Row>
         <Row title="At most one follow-up per contact per week" sub="Applies to every bot that follows up or reminds, together.">
@@ -165,7 +166,7 @@ function Hire({ catalog, onClose, onHired, max, count }: { catalog: Catalog; onC
                   <div key={b.id} style={{ display: "flex", gap: 10, padding: 12, borderRadius: 12, background: "#fffbf4", border: "1px solid #e4d9ca" }}>
                     <div style={{ width: 40, height: 40, flex: "none", borderRadius: 10, background: `oklch(0.92 0.045 ${b.hue})`, display: "grid", placeItems: "center" }}><Head bot={{ kind: b.id, hue: b.hue }} size={2.4} /></div>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700 }}>{b.name} <span style={{ fontWeight: 400, color: "#776a5e" }}>· {b.role}</span>{b.suggested && !b.hired && <span style={{ marginLeft: 6, fontSize: 11, color: "#8a4f14" }}>suggested</span>}</div>
+                      <div style={{ fontSize: 14.5, fontWeight: 700 }}>{b.name} <span style={{ fontWeight: 400, color: "#776a5e" }}>· {b.role}</span>{b.suggested && !b.hired && <span style={{ marginLeft: 6, fontSize: 11, color: "#8a4f14" }}>suggested</span>}{b.built_for && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: "#1f6a64", background: "#d6ecea", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap" }}>Built for {b.built_for}</span>}</div>
                       <div style={{ fontSize: 13, color: "#5d5148", lineHeight: 1.4 }}>{b.title}</div>
                       {b.missing.length > 0 && <div style={{ fontSize: 12, color: "#8a4f14" }}>Needs {b.missing.join(", ")}</div>}
                       <div>{b.hired ? <span style={{ fontSize: 12.5, color: "#2f6b3a", fontWeight: 600 }}>On your team</span> : <Button size="sm" disabled={count >= max} onClick={() => hire(b)}>Hire {b.name}</Button>}</div>

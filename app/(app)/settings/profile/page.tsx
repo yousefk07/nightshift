@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useApp } from "@/components/AppShell";
+import { useApp, useRename } from "@/components/AppShell";
 import { Page, Row, Section } from "@/components/settings";
 import { Button, ErrorLine, Field, Input, Select, TextArea } from "@/components/ui";
 import { api, useApi } from "@/lib/client";
@@ -12,6 +12,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 interface Profile { email: string; full_name?: string; phone?: string | null; signature?: string; working_hours?: { start: string; end: string; days: number[] } }
 
 export default function ProfilePage() {
+  const rename = useRename();
   const { me, toast, refreshMe } = useApp();
   const router = useRouter();
   const p = useApi<Profile>("/api/profile");
@@ -64,7 +65,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </Field>
-          <Field label="Email signature and tone" hint="Penny learns from your sent mail too. This keeps her on track.">
+          <Field label="Email signature and tone" hint={rename("Penny learns from your sent mail too. This keeps them on track.")}>
             <TextArea rows={5} value={f.signature} onChange={(e) => setF({ ...f, signature: e.target.value })} placeholder={"Warm and short. First names. No exclamation marks.\n\nWarmly,\nSam"} />
           </Field>
           <ErrorLine error={error} />

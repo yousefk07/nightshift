@@ -96,7 +96,7 @@ export function briefHtml(markdown: string) {
 
 // The morning brief email. Dawn's opening paragraph leads: its first sentence is the big heading (and the subject),
 // the rest sits under it; her sections follow.
-export function briefEmail(o: { day: string; headline: string; content: string; pending: number; url: string }) {
+export function briefEmail(o: { day: string; headline: string; content: string; pending: number; url: string; writer?: { name: string; role: string } }) {
   const date = new Date(`${o.day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
   const paras = o.content.replace(/\r/g, "").split(/\n{2,}/);
   const opens = paras[0] && !/^\s*(\*\*|#|[-*•] )/.test(paras[0]); // the content starts with a plain lead paragraph
@@ -105,10 +105,10 @@ export function briefEmail(o: { day: string; headline: string; content: string; 
   const rest = lead.replace(/\*\*/g, "").slice(lead.replace(/\*\*/g, "").indexOf(heading.replace(/…$/, "")) + heading.length).replace(/^[.!?:\s]+/, "").trim();
   const body = (opens ? paras.slice(1) : paras).join("\n\n");
   const { html, text } = layout({
-    eyebrow: `Morning brief · ${date}`, heading, lead: heading.endsWith("…") ? lead : rest || undefined, preheader: lead,
+    eyebrow: `${o.writer?.role ?? "Morning brief"} · ${date}`, heading, lead: heading.endsWith("…") ? lead : rest || undefined, preheader: lead,
     body: briefHtml(body),
     button: o.pending ? { label: `Review ${o.pending} approval${o.pending === 1 ? "" : "s"}`, url: o.url } : { label: "Open the office", url: o.url },
-    footer: "Written by Dawn, your brief bot. Change the time, days or length in Settings → Notifications & brief.",
+    footer: `Written by ${o.writer?.name ?? "Dawn"}, your ${(o.writer?.role ?? "brief bot").toLowerCase()}${o.writer?.role ? " bot" : ""}. Change the time, days or length in Settings → Notifications & brief.`,
   });
   return { subject: `${heading} · ${date}`, html, text: `${text}\n\n${body}` };
 }

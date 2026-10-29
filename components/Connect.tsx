@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { api } from "@/lib/client";
+import { useRename } from "./AppShell";
 import { Button, ErrorLine, Input, useDialog } from "./ui";
 
 // Connecting a tool: which providers each kind offers, and the small form for the ones that take a key or a link.
@@ -78,6 +79,7 @@ export function ConnectButton({ kind, onDone, label = "Connect", size = "sm" }: 
 }
 
 export function ConnectSheet({ kind, onClose, onDone }: { kind: Kind; onClose: () => void; onDone: () => void }) {
+  const rename = useRename();
   const k = KINDS[kind];
   const only = k.providers.length === 1 && !OAUTH.has(k.providers[0]) ? k.providers[0] : null; // one choice: skip the list
   const [provider, setProvider] = useState<string | null>(only);
@@ -127,7 +129,7 @@ export function ConnectSheet({ kind, onClose, onDone }: { kind: Kind; onClose: (
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase", color: "#b46a22" }}>Connect {k.label.toLowerCase()}</div>
             <div style={{ fontSize: 20, fontWeight: 700, marginTop: 2 }}>{provider ? LOOK[provider].name : `Where does your ${k.label.toLowerCase()} live?`}</div>
-            <div style={{ fontSize: 13.5, color: "#776a5e", marginTop: 4 }}>{provider ? LOOK[provider].sees : k.why}</div>
+            <div style={{ fontSize: 13.5, color: "#776a5e", marginTop: 4 }}>{provider ? LOOK[provider].sees : rename(k.why)}</div>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 8, border: 0, background: "transparent", color: "#776a5e", cursor: "pointer", fontSize: 20, lineHeight: 1, flex: "none" }}>×</button>
         </div>

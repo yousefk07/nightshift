@@ -151,7 +151,7 @@ export function ChatView({ desk }: { desk: DeskInfo }) {
               placeholder={`Ask ${desk.name} something or give it a job…`}
               style={{ fontSize: 15, lineHeight: 1.5, border: "none", outline: "none", background: "transparent", resize: "none", fontFamily: "inherit", color: "#2b2320", width: "100%", padding: 0 }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {(CHIPS[desk.kind] ?? ["What did you do overnight?", "What needs me today?"]).map((c) => (
+              {(desk.chips ?? CHIPS[desk.kind] ?? ["What did you do overnight?", "What needs me today?"]).map((c) => (
                 <button key={c} onClick={() => send(c)} disabled={!!streaming} style={{ fontSize: 13, padding: "7px 12px", borderRadius: 20, background: "#f1e8db", color: "#4f443c", border: "none" }}>{c}</button>
               ))}
               <span style={{ flex: 1 }} />

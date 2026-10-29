@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, clock, money } from "@/lib/client";
-import { Hop, useApp, useApprove, type DeskInfo } from "../AppShell";
+import { Hop, useApp, useApprove, type DeskInfo, useRename } from "../AppShell";
 import { Head } from "../pixel";
 import { Button, ErrorLine, Input, Label, TextArea, useDialog } from "../ui";
 
@@ -240,6 +240,7 @@ export function DraftCard({ a, onChanged, collapsed }: { a: Action; onChanged: (
 
 // The brief card on Your desk (clipboard clip on top, headline, bullets).
 export function BriefCard({ brief, finalAt, compact }: { brief: { headline: string; content: string; status: string } | null; finalAt: string; compact?: boolean }) {
+  const rename = useRename();
   const lines = (brief?.content ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
   const bullets = lines.filter((l) => /^[-*] /.test(l)).map((l) => l.replace(/^[-*] /, ""));
   const first = brief?.headline || lines.find((l) => !/^[-*#]/.test(l)) || "";
@@ -249,10 +250,10 @@ export function BriefCard({ brief, finalAt, compact }: { brief: { headline: stri
       <div style={{ position: "absolute", left: "50%", top: -8, width: 64, height: 14, marginLeft: -32, background: "#b9b0a6", border: "3px solid #2a1f2b" }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span className="pixel" style={{ fontSize: 17 }}>Morning brief</span>
-        <span style={{ fontSize: 12, color: "#716459" }}>by Dawn · {brief?.status === "final" ? "final" : `final at ${at}`}</span>
+        <span style={{ fontSize: 12, color: "#716459" }}>by {rename("Dawn")} · {brief?.status === "final" ? "final" : `final at ${at}`}</span>
       </div>
       {!brief ? (
-        <div style={{ fontSize: 14, color: "#776a5e" }}>Dawn writes it before {at}. Check back in the morning.</div>
+        <div style={{ fontSize: 14, color: "#776a5e" }}>{rename("Dawn")} writes it before {at}. Check back in the morning.</div>
       ) : (
         <>
           <div style={{ fontSize: 14, lineHeight: 1.5 }}>{first}</div>

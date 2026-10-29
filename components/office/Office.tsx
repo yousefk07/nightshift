@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import { api, clock, streamPost, useApi } from "@/lib/client";
-import { Hop, useApp, useApprove, type DeskInfo } from "../AppShell";
+import { Hop, useApp, useApprove, type DeskInfo, useRename } from "../AppShell";
 import { Desk, deskState, OwnerDesk, TypingDots } from "../pixel";
 import { Button, Card, Label, Pill } from "../ui";
 import { ActionRow, BotTile, BriefCard, Review, useCanApprove, type Action, Crew } from "./cards";
@@ -292,6 +292,7 @@ export function DeskPanel({ onClose, asPage }: { onClose?: () => void; asPage?: 
 
 // X1 The office before the first shift.
 export function QuietOffice({ onStart }: { onStart: () => void }) {
+  const rename = useRename();
   const { me } = useApp();
   const start = me.workspace.shift_start.slice(0, 5);
   const [h, m] = start.split(":").map(Number);
@@ -304,7 +305,7 @@ export function QuietOffice({ onStart }: { onStart: () => void }) {
       <div className="pixel" style={{ fontSize: 20, marginBottom: 6 }}>The office is quiet for now</div>
       <div style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 14 }}>Your team clocks in at {label}{hours > 0 ? `, in ${hours} hour${hours === 1 ? "" : "s"}` : ""}. Want a head start? Ask Penny to sort today&apos;s inbox now.</div>
       <div style={{ display: "flex", gap: 10 }}>
-        <Button onClick={onStart}>Start Penny now</Button>
+        <Button onClick={onStart}>{rename("Start Penny now")}</Button>
         {me.user.role === "owner" && <Link href="/settings/bots"><Button kind="outline">Change shift hours</Button></Link>}
       </div>
     </div>
