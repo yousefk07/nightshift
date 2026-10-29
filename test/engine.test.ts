@@ -1,198 +1,283 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runBot } from "../lib/engine/agent";
-import { chatWithBot, decideAction, mentions, postInRoom, tick } from "../lib/engine/flows";
+import {
+  approveAction, canApprove, chatWithBot, deskView, executeDue, hire, mentions, officeView, postInRoom, rejectAction, reviseAction, suggestedBots, tick, undoAction, UNDO_SECONDS,
+} from "../lib/engine/flows";
+import { setDelivery } from "../lib/notify";
 import { fakeDeepSeek } from "./fake-deepseek";
 import { memStore } from "./memstore";
 
-const google = { provider: "google" as const, secret: { access_token: "ya29.test", refresh_token: "r", expires_at: Date.now() + 3_600_000 } };
+const google = { provider: "google" as const, kinds: ["email", "calendar"] as ("email" | "calendar")[], secret: { access_token: "ya29.test", refresh_token: "r", expires_at: Date.now() + 3_600_000 } };
+const stripe = { provider: "stripe" as const, kinds: ["accounting"] as "accounting"[], account: "Stripe (test)", secret: { key: "sk_test_x" } };
+const owner = { userId: "owner-1", role: "owner" as const };
 
-// Answers the Gmail calls the bots make, and records what was sent.
-function gmailApi() {
-  const sent: any[] = [];
+// Answers the Gmail and Stripe calls the bots make, and records what was sent.
+function services() {
+  const sent: any[] = [], credits: any[] = [];
   const handler = (url: string, init?: RequestInit) => {
-    if (url.includes("/messages/send")) {
-      sent.push(JSON.parse(String(init?.body)));
-      return { id: "sent-1" };
-    }
-    if (url.includes("/messages/m1")) return { id: "m1", threadId: "t1", snippet: "Can you confirm Thursday?", payload: { mimeType: "text/plain", headers: [{ name: "From", value: "Ana <ana@acme.test>" }, { name: "Subject", value: "Thursday" }, { name: "Message-ID", value: "<abc@acme.test>" }] } };
+    if (url.includes("/messages/send")) return sent.push(JSON.parse(String(init?.body))), { id: `sent-${sent.length}` };
+    if (url.includes("/messages/m1")) return { id: "m1", threadId: "t1", snippet: "Can you confirm Thursday?", payload: { mimeType: "text/plain", headers: [{ name: "From", value: "Lena <lena@ortiz.test>" }, { name: "Subject", value: "Thursday" }, { name: "Message-ID", value: "<abc@ortiz.test>" }] } };
+    if (url.includes("api.stripe.com/v1/credit_notes")) return credits.push(String(init?.body)), { id: "cn_1", number: "CN-0107" };
     throw new Error(`unexpected ${url}`);
   };
-  return { sent, handler };
+  return { sent, credits, handler };
 }
+const sendTurn = (to = "lena@ortiz.test") => ({ tools: [{ name: "send_email", args: { to, subject: "Thursday", body: "Thursday works.", reply_to_id: "m1" } }] });
+const later = () => vi.setSystemTime(new Date(Date.now() + (UNDO_SECONDS + 1) * 1000));
 
-const sendTurn = { tools: [{ name: "send_email", args: { to: "ana@acme.test", subject: "Thursday", body: "Thursday works.", reply_to_id: "m1" } }] };
+beforeEach(() => {
+  vi.useRealTimers();
+  delete process.env.TAVILY_API_KEY;
+  setDelivery({ email: async () => {}, push: async () => 0 });
+});
 
 describe("approvals", () => {
-  beforeEach(() => {
-    delete process.env.TAVILY_API_KEY;
-  });
-
-  it("an 'ask' bot queues outward actions instead of running them, and approving runs them", async () => {
+  it("an 'ask' bot turns emails into cards; approving sends after the undo window", async () => {
     const { store, ws, db } = memStore({ conns: [google] });
-    const gm = gmailApi();
-    fakeDeepSeek([sendTurn, { text: "Your reply to Ana is waiting for your OK." }], gm.handler);
+    const s = services();
+    fakeDeepSeek([sendTurn(), { text: "Your reply to Lena is waiting." }], s.handler);
 
-    const r = await chatWithBot(store, ws, "inbox", "Tell Ana Thursday works");
-    expect(r.result.status).toBe("done");
+    const r = await chatWithBot(store, ws, "inbox", "Tell Lena Thursday works");
     expect(r.result.actions).toHaveLength(1);
-    expect(gm.sent).toHaveLength(0); // nothing left the building
-    const action = db.actions[0];
-    expect(action).toMatchObject({ tool: "send_email", status: "pending", title: 'Send email to ana@acme.test: "Thursday"' });
-    expect(db.messages.some((m) => m.content.startsWith("Waiting for your OK"))).toBe(true);
+    expect(s.sent).toHaveLength(0); // nothing left the building
+    const card = db.actions[0];
+    expect(card).toMatchObject({ tool: "send_email", risk: "message", status: "pending", title: 'Email to lena@ortiz.test: "Thursday"' });
+    expect(db.bots.find((b) => b.kind === "inbox")).toMatchObject({ status: "needs_you", status_text: "1 draft for you" });
 
-    const d = await decideAction(store, ws, action.id, "approve", "owner-1");
-    expect(d.status).toBe("done");
-    expect(gm.sent).toHaveLength(1);
-    expect(gm.sent[0].threadId).toBe("t1"); // sent in Ana's thread
-    expect(db.actions[0].status).toBe("done");
-    await expect(decideAction(store, ws, action.id, "approve", "owner-1")).rejects.toThrow(/already done/);
+    const a = await approveAction(store, ws, card.id, owner);
+    expect(a.status).toBe("sending");
+    expect(await executeDue(store)).toEqual([]); // still inside the undo window
+    expect(s.sent).toHaveLength(0);
+    later();
+    expect(await executeDue(store)).toEqual([{ id: card.id, status: "done", result: { id: "sent-1" } }]);
+    expect(s.sent[0].threadId).toBe("t1");
+    expect(db.messages.some((m) => m.thread_id === r.thread.id && m.content.startsWith("Sent: Email to lena"))).toBe(true);
+    await expect(approveAction(store, ws, card.id, owner)).rejects.toThrow(/already done/);
   });
 
-  it("an edited card is sent as edited; a rejected one never runs", async () => {
+  it("undo inside the window puts the card back; discard never sends", async () => {
     const { store, ws, db } = memStore({ conns: [google] });
-    const gm = gmailApi();
-    fakeDeepSeek([sendTurn, { text: "Queued." }, sendTurn, { text: "Queued." }], gm.handler);
-    await chatWithBot(store, ws, "inbox", "reply to Ana");
-    await chatWithBot(store, ws, "inbox", "reply to Ana again");
+    const s = services();
+    fakeDeepSeek([sendTurn(), { text: "Queued." }, sendTurn("marco@ruiz.test"), { text: "Queued." }], s.handler);
+    await chatWithBot(store, ws, "inbox", "reply to Lena");
+    await chatWithBot(store, ws, "inbox", "reply to Marco");
     const [a, b] = db.actions;
-    await decideAction(store, ws, a.id, "approve", "o", { ...a.payload, body: "Thursday at 3 works." });
-    await decideAction(store, ws, b.id, "reject", "o");
-    expect(gm.sent).toHaveLength(1);
-    expect(Buffer.from(gm.sent[0].raw, "base64url").toString()).toContain("Thursday at 3 works.");
-    expect(db.actions.map((x) => x.status)).toEqual(["done", "rejected"]);
+    await approveAction(store, ws, a.id, owner, { ...a.payload, body: "Thursday at 3 works." });
+    await undoAction(store, ws, a.id, "owner-1");
+    expect(db.actions[0].status).toBe("pending");
+    expect(db.actions[0].payload.body).toBe("Thursday at 3 works."); // the edit is kept
+    await rejectAction(store, ws, b.id, owner);
+    later();
+    await executeDue(store);
+    expect(s.sent).toHaveLength(0);
+    expect(db.actions.map((x) => x.status)).toEqual(["pending", "rejected"]);
   });
 
-  it("an 'auto' bot acts right away", async () => {
-    const { store, ws, db } = memStore({ conns: [google] });
+  it("'auto' bots send email on their own, but money still waits", async () => {
+    const { store, ws, db } = memStore({ conns: [google, stripe] });
     db.bots.find((b) => b.kind === "inbox")!.approval = "auto";
-    const gm = gmailApi();
-    fakeDeepSeek([sendTurn, { text: "Sent." }], gm.handler);
-    const r = await chatWithBot(store, ws, "inbox", "Tell Ana Thursday works");
-    expect(r.result.actions).toHaveLength(0);
-    expect(gm.sent).toHaveLength(1);
-    expect(db.actions).toHaveLength(0);
+    db.bots.find((b) => b.kind === "invoices")!.approval = "auto";
+    const s = services();
+    fakeDeepSeek([sendTurn(), { text: "Sent." }, { tools: [{ name: "create_credit_note", args: { invoice_id: "in_1042", amount: 1240, reason: "Billed twice", customer: "Acme Hotels", currency: "USD", group: "acme-1042" } }] }, { text: "Credit note ready." }], s.handler);
+    await chatWithBot(store, ws, "inbox", "Tell Lena Thursday works");
+    expect(s.sent).toHaveLength(1);
+    await chatWithBot(store, ws, "invoices", "Fix the Acme double charge");
+    expect(s.credits).toHaveLength(0);
+    expect(db.actions[0]).toMatchObject({ tool: "create_credit_note", risk: "money", amount_cents: 124000, counterparty: "Acme Hotels", group_key: "acme-1042" });
   });
 
-  it("quiet tools run even on 'ask'", async () => {
+  it("roles: email-only approvers can't approve money, viewers can't approve anything", () => {
+    expect(canApprove("approver_email", { risk: "message" })).toBe(true);
+    expect(canApprove("approver_email", { risk: "money" })).toBe(false);
+    expect(canApprove("viewer", { risk: "message" })).toBe(false);
+    expect(canApprove("approver", { risk: "money" })).toBe(true);
+  });
+
+  it("'Ask Ledger' sets the card aside and queues a redraft that replaces it", async () => {
     const { store, ws, db } = memStore({ conns: [google] });
-    fakeDeepSeek([
-      { tools: [{ name: "flag", args: { source: "email", external_id: "m1", title: "Acme disputes invoice", why: "They say they were double-billed.", importance: 3 } }] },
-      { tools: [{ name: "flag", args: { source: "email", external_id: "m1", title: "Acme disputes invoice #1042", why: "Double-billed.", importance: 3 } }] },
-      { text: "Flagged one." },
-    ]);
-    await chatWithBot(store, ws, "inbox", "check mail");
-    expect(db.flags).toHaveLength(1); // the same email is only flagged once
-    expect(db.flags[0].title).toBe("Acme disputes invoice #1042");
-    expect(db.actions).toHaveLength(0);
+    const s = services();
+    fakeDeepSeek([sendTurn(), { text: "Queued." }, { tools: [{ name: "send_email", args: { to: "lena@ortiz.test", subject: "Thursday", body: "Thursday at 2 works, see you then!", reply_to_id: "m1" } }] }, { text: "Redrafted." }], s.handler);
+    await chatWithBot(store, ws, "inbox", "reply to Lena");
+    const first = db.actions[0];
+    await reviseAction(store, ws, first.id, "Say 2 PM and sound warmer", "owner-1");
+    expect(db.actions[0].status).toBe("revising");
+    await tick(store);
+    expect(db.actions[0].status).toBe("rejected");
+    expect(db.actions[1]).toMatchObject({ status: "pending" });
+    expect(db.actions[1].payload.body).toContain("Thursday at 2");
   });
 });
 
-describe("tools and budget", () => {
-  it("only offers tools whose service is connected", async () => {
-    const { store, ws } = memStore(); // nothing connected
+describe("guardrails", () => {
+  it("holds, the do-not-contact list and the weekly cap stop outreach before a card is even made", async () => {
+    const { store, ws, db } = memStore({ conns: [google] });
+    await hire(store, ws, "leads", null); // Nudge isn't on the default team
+    await store.setDoNotContact(ws.id, [{ kind: "domain", value: "spam.test" }]);
+    await store.placeHold(ws.id, { subject: "acme.test", label: "Acme", scope: "all", reason: "invoice dispute", bot_id: null, user_id: null, resume_at: null });
+    await store.addTouch(ws.id, "dana@quiet.test", null);
+    const nudge = { to: "dana@quiet.test", subject: "Following up", body: "Any thoughts on the quote?" };
+    const ds = fakeDeepSeek([
+      { tools: [{ name: "send_email", args: { to: "x@spam.test", subject: "hi", body: "hi" } }] },
+      { tools: [{ name: "send_email", args: { to: "ops@acme.test", subject: "hi", body: "hi" } }] },
+      { tools: [{ name: "send_email", args: nudge }] },
+      { text: "Couldn't contact any of them." },
+    ]);
+    await chatWithBot(store, ws, "leads", "follow up with everyone");
+    const replies = ds.requests[3].messages.filter((m: any) => m.role === "tool").map((m: any) => JSON.parse(m.content).refused);
+    expect(replies[0]).toMatch(/do-not-contact/);
+    expect(replies[1]).toMatch(/on hold: invoice dispute/);
+    expect(replies[2]).toMatch(/already contacted this week/);
+    expect(db.actions).toHaveLength(0);
+  });
+
+  it("the weekly cap doesn't block Penny replying to someone who wrote in", async () => {
+    const { store, ws, db } = memStore({ conns: [google] });
+    await store.addTouch(ws.id, "lena@ortiz.test", null);
+    fakeDeepSeek([sendTurn(), { text: "Draft ready." }], services().handler);
+    await chatWithBot(store, ws, "inbox", "reply to Lena");
+    expect(db.actions).toHaveLength(1);
+  });
+
+  it("place_hold posts a hold in the room and every bot respects it", async () => {
+    const { store, ws, db } = memStore({ conns: [google] });
+    fakeDeepSeek([
+      { tools: [{ name: "place_hold", args: { who: "acme.test", label: "Acme", scope: "reminders", reason: "disputes invoice #1042" } }] },
+      { text: "Paused reminders for Acme." },
+    ]);
+    await chatWithBot(store, ws, "invoices", "Acme disputes 1042");
+    expect(db.holds[0]).toMatchObject({ subject: "acme.test", scope: "reminders" });
+    expect(db.messages.find((m) => m.kind === "hold")?.content).toBe("Paused payment reminders to Acme: disputes invoice #1042");
+  });
+});
+
+describe("tools, budget, memory", () => {
+  it("only offers tools whose connection exists", async () => {
+    const { store, ws } = memStore();
     const ds = fakeDeepSeek([{ text: "No mailbox yet." }]);
     await chatWithBot(store, ws, "inbox", "anything new?");
     const names = ds.requests[0].tools.map((t: any) => t.function.name);
     expect(names).toContain("post_to_room");
+    expect(names).toContain("remember");
     expect(names).not.toContain("send_email");
-    expect(names).not.toContain("search_email");
   });
 
-  it("stops when the day's budget is used up, without calling DeepSeek", async () => {
+  it("stops at the day's budget without calling DeepSeek", async () => {
     const { store, ws, db } = memStore({ budget: 0 });
+    db.bots.push({ ...db.bots[0], id: "r1", kind: "research", name: "Sage" });
     const ds = fakeDeepSeek([{ text: "hi" }]);
-    const r = await chatWithBot(store, ws, "research", "look into dental chairs");
+    const r = await chatWithBot(store, ws, "research", "look into kiln shelves");
     expect(r.result.status).toBe("stopped");
     expect(ds.requests).toHaveLength(0);
-    expect(db.runs[0].status).toBe("stopped");
   });
 
-  it("records tokens and cost on the run and the day", async () => {
+  it("shared memory reaches every bot's prompt, and remember doesn't duplicate", async () => {
     const { store, ws, db } = memStore();
-    fakeDeepSeek([{ text: "Done.", usage: { hit: 10_000, miss: 2_000, out: 500 } }]);
-    const r = await chatWithBot(store, ws, "brief", "hello");
-    const run = db.runs[0];
-    expect(run).toMatchObject({ tokens_hit: 10_000, tokens_miss: 2_000, tokens_out: 500, status: "done" });
-    expect(r.result.costUsd).toBeGreaterThan(0);
-    expect([...db.usage.values()][0]).toBeCloseTo(r.result.costUsd, 10);
+    await store.remember(ws.id, { subject: "Acme Hotels", fact: "Pays every invoice on the 15th" });
+    const ds = fakeDeepSeek([{ tools: [{ name: "remember", args: { subject: "Acme Hotels", fact: "Pays every invoice on the 15th" } }] }, { text: "Noted." }]);
+    await chatWithBot(store, ws, "brief", "hello");
+    expect(ds.requests[0].messages[0].content).toContain("Acme Hotels: Pays every invoice on the 15th");
+    expect(db.memories).toHaveLength(1);
   });
 
-  it("research gathers with Flash, then writes the report with Pro", async () => {
+  it("research gathers with Flash and writes with Pro, metering research time", async () => {
     process.env.TAVILY_API_KEY = "tvly-test";
-    const { store, ws } = memStore();
+    const { store, ws, db } = memStore();
+    db.bots.push({ ...db.bots[0], id: "r1", kind: "research", name: "Sage" });
     const ds = fakeDeepSeek(
-      [{ tools: [{ name: "web_search", args: { query: "dental chair prices 2026" } }] }, { text: "Ready to write up." }, { text: "## Summary\nChairs cost $X [1]." }],
-      (url) => (url.includes("tavily") ? { results: [{ title: "Chair guide", url: "https://example.test/chairs", content: "Chairs cost $X." }] } : null),
+      [{ tools: [{ name: "web_search", args: { query: "kiln shelf suppliers" } }] }, { text: "Ready." }, { text: "## Summary\nLarkspur is 12% cheaper [1]." }],
+      (url) => (url.includes("tavily") ? { results: [{ title: "Shelves", url: "https://example.test", content: "Larkspur $12" }] } : null),
     );
-    const r = await chatWithBot(store, ws, "research", "What do dental chairs cost?");
+    const r = await chatWithBot(store, ws, "research", "best kiln shelf supplier?");
     expect(ds.requests.map((q) => q.model)).toEqual(["deepseek-v4.1-flash", "deepseek-v4.1-flash", "deepseek-v4-pro"]);
-    expect(r.result.text).toContain("## Summary");
-    expect(r.run.id).toBeTruthy();
-    delete process.env.TAVILY_API_KEY;
-  });
-
-  it("an unknown tool or bad JSON is told to the model, not thrown", async () => {
-    const { store, ws } = memStore();
-    const ds = fakeDeepSeek([{ tools: [{ name: "delete_everything", args: {} }] }, { text: "Sorry." }]);
-    const r = await chatWithBot(store, ws, "brief", "go");
-    expect(r.result.status).toBe("done");
-    expect(ds.requests[1].messages.at(-1).content).toContain("no tool called delete_everything");
-  });
-});
-
-describe("the team", () => {
-  it("hand_off queues work for another bot, and the tick runs it and reports in the room", async () => {
-    const { store, ws, db } = memStore();
-    fakeDeepSeek([
-      { tools: [{ name: "hand_off", args: { bot: "research", task: "Find three suppliers of nitrile gloves in Ontario" } }] },
-      { text: "Asked Research." },
-      { text: "Here are three suppliers." }, // Research, on the tick
-    ]);
-    await chatWithBot(store, ws, "inbox", "we need gloves");
-    const queued = db.runs.find((r) => r.status === "queued")!;
-    expect(queued.trigger).toBe("handoff");
-    expect(queued.input).toContain("nitrile gloves");
-
-    const done = await tick(store, { now: new Date() });
-    expect(done).toContainEqual({ bot: "research", trigger: "handoff", status: "done" });
-    const room = db.messages.filter((m) => m.thread_id === db.threads.find((t) => t.kind === "room")!.id).map((m) => m.content);
-    expect(room.some((t) => t.startsWith("@Research"))).toBe(true);
-    expect(room).toContain("Here are three suppliers.");
-  });
-
-  it("@mentions in the room give that bot a job", async () => {
-    const { store, ws, db } = memStore();
-    expect(mentions("@inbox anything from Acme? also @Research", db.bots).map((b) => b.kind).sort()).toEqual(["inbox", "research"]);
-    expect(mentions("@followup and @morning brief", db.bots).map((b) => b.kind).sort()).toEqual(["brief", "followup"]);
-    const r = await postInRoom(store, ws, "@followup who still owes us?");
-    expect(r.queued).toHaveLength(1);
-    expect(db.runs[0]).toMatchObject({ status: "queued", trigger: "room" });
-  });
-
-  it("the tick runs due bots once and moves their schedule on", async () => {
-    const { store, ws, db } = memStore();
-    const brief = db.bots.find((b) => b.kind === "brief")!;
-    db.bots.forEach((b) => (b.next_run_at = null));
-    brief.next_run_at = new Date(Date.now() - 1000).toISOString();
-    fakeDeepSeek([{ tools: [{ name: "save_brief", args: { markdown: "**Needs you:** nothing." } }] }, { text: "Brief saved." }]);
-    const now = new Date();
-    const done = await tick(store, { now });
-    expect(done).toEqual([{ bot: "brief", trigger: "schedule", status: "done" }]);
-    expect(new Date(brief.next_run_at!).getTime()).toBeGreaterThan(now.getTime());
-    expect([...db.briefs.values()][0]).toContain("Needs you");
-    expect(await tick(store, { now })).toEqual([]); // not due again
-    void ws;
+    expect(r.result.text).toContain("Larkspur");
+    expect(db.runs[0].searches).toBe(1);
   });
 
   it("a failing DeepSeek call fails the run cleanly", async () => {
     const { store, ws, db } = memStore();
     process.env.DEEPSEEK_API_KEY = "test";
-    const { vi } = await import("vitest");
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ error: { message: "Insufficient balance" } }), { status: 402 }));
     const bot = db.bots[0];
     const run = await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger: "manual" });
     const r = await runBot(store, { ws, bot, run, input: "go" });
     expect(r.status).toBe("failed");
     expect(db.runs[0].error).toContain("Insufficient balance");
+    expect(bot.status).toBe("failed");
+  });
+});
+
+describe("the team", () => {
+  it("hand_off queues work; the tick runs it and reports in the room", async () => {
+    const { store, ws, db } = memStore();
+    fakeDeepSeek([
+      { tools: [{ name: "hand_off", args: { bot: "invoices", task: "Acme says #1042 was billed twice", title: "Acme #1042 dispute" } }] },
+      { text: "Handed to Ledger." },
+      { text: "Checked: it was a real duplicate." },
+    ]);
+    await chatWithBot(store, ws, "inbox", "Acme emailed about a double charge");
+    const handoff = db.messages.find((m) => m.kind === "handoff")!;
+    expect(handoff).toMatchObject({ content: "@Ledger Acme says #1042 was billed twice", data: { title: "Acme #1042 dispute" } });
+    expect(await tick(store)).toContainEqual({ bot: "invoices", trigger: "handoff", status: "done" });
+    expect(db.messages.some((m) => m.content === "Checked: it was a real duplicate.")).toBe(true);
+  });
+
+  it("@mentions by name or role give a bot a job", async () => {
+    const { store, ws, db } = memStore();
+    expect(mentions("@Penny anything from Acme? also @ledger", db.bots).map((b) => b.kind).sort()).toEqual(["inbox", "invoices"]);
+    expect(mentions("@inbox and @Dawn", db.bots).map((b) => b.kind).sort()).toEqual(["brief", "inbox"]);
+    const r = await postInRoom(store, ws, "@Ledger who still owes us?");
+    expect(r.queued).toHaveLength(1);
+    expect(r.message.mentions).toEqual([db.bots.find((b) => b.kind === "invoices")!.id]);
+  });
+
+  it("the tick runs due bots once and moves their schedule on", async () => {
+    const { store, ws, db } = memStore();
+    db.bots.forEach((b) => (b.next_run_at = null));
+    const ledger = db.bots.find((b) => b.kind === "invoices")!;
+    ledger.next_run_at = new Date(Date.now() - 1000).toISOString();
+    fakeDeepSeek([{ text: "Nothing overdue tonight." }]);
+    const now = new Date();
+    expect(await tick(store, { now })).toEqual([{ bot: "invoices", trigger: "schedule", status: "done" }]);
+    expect(new Date(ledger.next_run_at!).getTime()).toBeGreaterThan(now.getTime());
+    expect(await tick(store, { now })).toEqual([]);
+    void ws;
+  });
+
+  it("nothing runs after the trial ends", async () => {
+    const { store, ws, db } = memStore();
+    ws.trial_ends_at = new Date(Date.now() - 1000).toISOString();
+    db.bots[0].next_run_at = new Date(Date.now() - 1000).toISOString();
+    const ds = fakeDeepSeek([{ text: "hi" }]);
+    expect(await tick(store)).toEqual([]);
+    expect(ds.requests).toHaveLength(0);
+  });
+});
+
+describe("screens", () => {
+  it("the office shows each desk's persona and status; the desk groups and numbers the queue", async () => {
+    const { store, ws, db } = memStore({ conns: [google] });
+    fakeDeepSeek([{ tools: [sendTurn().tools[0], { name: "send_email", args: { to: "dana@acme.test", subject: "Sorry", body: "You're right.", group: "acme" } }] }, { text: "Two drafts." }], services().handler);
+    await chatWithBot(store, ws, "inbox", "reply to both");
+    const office = await officeView(store, ws);
+    expect(office.desks.find((d) => d.kind === "inbox")).toMatchObject({ name: "Penny", role: "Inbox", hue: 65, prop: "papers", status: "needs_you", waiting: 2 });
+    expect(office.needs_you).toEqual(["Penny"]);
+    const desk = await deskView(store, ws);
+    expect(desk.queue.map((q) => q.n)).toEqual([1, 2]);
+    expect(desk.groups).toHaveLength(2);
+    void db;
+  });
+
+  it("onboarding suggests bots from the industry and what eats the owner's evenings", () => {
+    const ids = suggestedBots("dental_general", ["Following up leads"]).map((t) => t.id);
+    expect(ids).toEqual(expect.arrayContaining(["inbox", "invoices", "brief", "leads"]));
+    expect(ids.some((id) => id.startsWith("dental_"))).toBe(true);
+  });
+
+  it("hiring adds a specialist with its persona and posts a welcome in the room", async () => {
+    const { store, ws, db } = memStore({ industry: "dental_general" });
+    const kind = (await import("../lib/bots")).forIndustry("dental_general").find((t) => t.id.startsWith("dental"))!.id;
+    const bot = await hire(store, ws, kind, "owner-1");
+    expect(bot.kind).toBe(kind);
+    expect(db.messages.at(-1)?.content).toMatch(/joined the team/);
   });
 });

@@ -2,9 +2,12 @@ import { route } from "@/lib/auth";
 import { supabaseStore } from "@/lib/store-supabase";
 import type { ActionStatus } from "@/lib/types";
 
-// Approval cards. Default: the ones waiting for the owner.
+const STATUSES: ActionStatus[] = ["pending", "sending", "executing", "done", "rejected", "undone", "failed", "revising"];
+
+// Approval cards, oldest first. Default: the ones waiting (?status=done, ?status=all ...).
 export const GET = route(async (req, me) => {
-  const status = (new URL(req.url).searchParams.get("status") ?? "pending") as ActionStatus | "all";
-  const actions = await supabaseStore().actions(me.ws.id, status === "all" ? undefined : status);
-  return Response.json({ actions });
+  const s = new URL(req.url).searchParams.get("status") ?? "pending";
+  const status = s === "all" ? undefined : (s.split(",").filter((x) => STATUSES.includes(x as ActionStatus)) as ActionStatus[]);
+  const actions = await supabaseStore().actions(me.ws.id, status);
+  return Response.json({ actions: actions.map((a, i) => ({ n: i + 1, ...a })) });
 });

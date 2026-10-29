@@ -9,18 +9,20 @@ import { useEffect, useState } from "react";
 const supabase = () => createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
 type Me = {
-  email: string;
+  user: { email: string; role: string };
   workspace: { name: string; timezone: string; daily_budget_usd: number };
-  bots: { kind: string; name: string; approval: string; enabled: boolean; next_run_at: string | null }[];
+  plan: { name: string; active: boolean };
   connections: { id: string; provider: string; account: string; status: string }[];
   search: boolean;
-  pending: number;
+  waiting: number;
   open_flags: number;
   spent_today_usd: number;
 };
+type Desk = { kind: string; name: string; role: string; status_text: string; approval: string };
 
 export default function Home() {
   const [me, setMe] = useState<Me | null>(null);
+  const [desks, setDesks] = useState<Desk[]>([]);
   const [state, setState] = useState<"loading" | "out" | "in">("loading");
   const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
@@ -33,6 +35,7 @@ export default function Home() {
       if (q.get("connect_error")) setNote(`Couldn't connect: ${q.get("connect_error")}`);
       if (r.ok) {
         setMe(await r.json());
+        setDesks((await (await fetch("/api/office")).json()).desks ?? []);
         setState("in");
       } else {
         setState("out");
@@ -67,15 +70,14 @@ export default function Home() {
       {state === "in" && me && (
         <>
           <p>
-            Signed in as {me.email} · {me.workspace.name} · spent today ${me.spent_today_usd.toFixed(3)} of ${Number(me.workspace.daily_budget_usd).toFixed(2)} ·{" "}
-            {me.pending} waiting for you · {me.open_flags} flags
+            Signed in as {me.user.email} ({me.user.role}) · {me.workspace.name} · {me.plan.name} · spent today ${me.spent_today_usd.toFixed(3)} of ${Number(me.workspace.daily_budget_usd).toFixed(2)} ·{" "}
+            {me.waiting} waiting for you · {me.open_flags} flags
           </p>
           <h2>Team</h2>
           <ul>
-            {me.bots.map((b) => (
+            {desks.map((b) => (
               <li key={b.kind}>
-                <b>{b.name}</b>: {b.enabled ? "on" : "off"}, {b.approval === "ask" ? "asks before acting" : "acts on its own"}
-                {b.next_run_at ? `, next run ${new Date(b.next_run_at).toLocaleString()}` : ", runs when asked"}
+                <b>{b.name}</b> · {b.role}: {b.status_text || "idle"} ({b.approval === "ask" ? "asks before emailing" : "emails on its own"}; money always asks)
               </li>
             ))}
           </ul>
@@ -88,11 +90,12 @@ export default function Home() {
           </ul>
           <p>
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- these leave the site for Google and Microsoft */}
-            <a href="/api/connect/google">Connect Gmail + Calendar</a> · <a href="/api/connect/microsoft">Connect Outlook</a> · Stripe and Shopify: use the CLI (nightshift connect stripe)
+            <a href="/api/connect/google">Connect Gmail + Calendar</a> · <a href="/api/connect/microsoft">Connect Outlook</a> · Stripe, Shopify, HubSpot and Google Sheets: POST to /api/connect/&lt;provider&gt;
           </p>
           <h2>CLI</h2>
+          <p>Run <code>nightshift login</code>; it opens this site to approve the device. Or make an API key:</p>
           <p>
-            <button onClick={makeToken}>Make a CLI token</button>
+            <button onClick={makeToken}>Make a read-only API key</button>
           </p>
           {token && <pre style={{ border: "1px solid #8884", padding: 12, borderRadius: 6, whiteSpace: "pre-wrap" }}>nightshift login {location.origin} {token}</pre>}
         </>

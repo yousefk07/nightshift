@@ -12,41 +12,75 @@ export const SEARCH_COST_USD = Number(process.env.SEARCH_COST_USD) || 0.008;
 
 export interface RunResult {
   text: string;
-  status: "done" | "failed" | "stopped";
+  status: "done" | "partial" | "failed" | "stopped";
   actions: string[];
   usage: Usage;
   costUsd: number;
 }
 
-function systemPrompt(ws: Workspace, bot: Bot, tools: Tool[]) {
+// Who else is on the team, so the bot knows whom to hand work to.
+function teamLine(bot: Bot, team: Bot[]) {
+  const others = team.filter((b) => b.id !== bot.id).map((b) => {
+    try {
+      const t = botDef(b.kind);
+      return `${b.kind} (${b.name}, ${t.role}: ${t.title})`;
+    } catch {
+      return `${b.kind} (${b.name})`;
+    }
+  });
+  return others.length ? `Your teammates, by id: ${others.join("; ")}. Use hand_off to give one of them work, and post_to_room for anything the team should see.` : "";
+}
+
+async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[], team: Bot[]) {
   const def = botDef(bot.kind);
-  const now = new Date();
-  const outward = tools.filter((t) => t.risk === "outward").map((t) => t.name);
+  const [memories, members] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id)]);
+  const owner = members.find((m) => m.role === "owner");
+  const messages = tools.filter((t) => t.risk === "message").map((t) => t.name);
+  const money = tools.filter((t) => t.risk === "money").map((t) => t.name);
   return [
-    `You are ${bot.name}, one of the Nightshift bots working for ${ws.name}. ${def.role}`,
+    `You are ${bot.name}, the ${def.role} bot on the Nightshift team working for ${ws.name}. ${def.title}.`,
     ws.about ? `About the business: ${ws.about}` : "",
-    `Today is ${localDate(ws.timezone, now)} (${ws.timezone}).`,
+    `Today is ${localDate(ws.timezone, new Date())} (${ws.timezone}).${owner?.full_name ? ` The owner is ${owner.full_name}.` : ""}`,
     def.instructions,
-    outward.length
+    messages.length
       ? bot.approval === "ask"
-        ? `Tools that act outside Nightshift (${outward.join(", ")}) don't run right away: each call becomes a card the owner approves. Prepare them fully and carefully, then tell the owner what's waiting.`
-        : `The owner lets you act on your own: tools like ${outward.join(", ")} run immediately, so double-check recipients and amounts first.`
+        ? `Tools that contact people (${messages.join(", ")}) don't run right away: each call becomes a card the owner approves. Prepare them fully, then say what's waiting.`
+        : `The owner lets you contact people on your own: ${messages.join(", ")} run immediately, so double-check recipients first.`
       : "",
-    "Other bots on the team: Inbox (email), Research (web research), Follow-up (unanswered threads, unpaid invoices and orders), Morning brief (the daily summary). Use hand_off to give one of them work, and post_to_room for anything the team should see.",
-    "Be brief and concrete. Never invent facts, emails, amounts or sources; if you don't know, say so.",
-    bot.settings && Object.keys(bot.settings).length ? `Your settings from the owner: ${JSON.stringify(bot.settings)}` : "",
+    money.length ? `Money tools (${money.join(", ")}) always wait for the owner's approval, whatever else you're allowed to do.` : "",
+    "If a tool says someone is on hold, on the do-not-contact list or was already contacted this week, respect it: don't try another way to reach them.",
+    teamLine(bot, team),
+    memories.length ? `What the team knows (shared memory; add lasting facts with remember):\n${memories.map((m) => `- ${m.subject ? m.subject + ": " : ""}${m.fact}`).join("\n")}` : "",
+    "Be brief and concrete. Never invent facts, emails, amounts or sources; if you don't know, say so. Never give medical, legal or financial advice to customers.",
+    Object.keys(bot.settings ?? {}).length ? `Your settings from the owner: ${JSON.stringify(bot.settings)}` : "",
   ].filter(Boolean).join("\n\n");
 }
 
 export function historyToChat(messages: Message[], botId: string): ChatMessage[] {
   return messages.map((m) => ({
     role: m.role === "bot" && m.bot_id === botId ? "assistant" : "user",
-    content: m.role === "bot" && m.bot_id !== botId ? `[another bot] ${m.content}` : m.content,
+    content: m.role === "bot" && m.bot_id !== botId ? `[another bot] ${m.content}` : m.role === "system" ? `[note] ${m.content}` : m.content,
   }));
 }
 
+// The office status for a bot: what it's doing in a few words.
+async function setStatus(ctx: Pick<ToolCtx, "store" | "bot" | "emit">, status: Bot["status"], text: string) {
+  ctx.bot.status = status;
+  ctx.bot.status_text = text;
+  await ctx.store.updateBot(ctx.bot.id, { status, status_text: text });
+  ctx.emit({ type: "status", botId: ctx.bot.id, status, text });
+}
+const doing: Record<string, string> = {
+  search_email: "Reading new mail", read_email: "Reading an email", draft_reply: "Drafting a reply", send_email: "Writing an email",
+  web_search: "Searching the web", read_page: "Reading a web page", check_page: "Checking a page",
+  list_invoices: "Going through invoices", get_invoice: "Checking an invoice", list_payments: "Matching payments", create_credit_note: "Drafting a credit note",
+  send_invoice_reminder: "Drafting a reminder", create_invoice: "Drafting an invoice", review_activity: "Catching up on the night", save_brief: "Writing the morning brief",
+  list_stale_leads: "Looking for quiet leads", find_contacts: "Looking someone up", save_document: "Writing it up", list_events: "Checking the calendar", find_free_slots: "Finding open times",
+  list_orders: "Going through orders", list_low_stock: "Checking stock",
+};
+
 // Runs one bot on one task: model call, tools, model call, ... until it answers, hits the step limit or the day's
-// budget. Outward tools on an 'ask' bot become pending actions instead of running.
+// budget. Message tools on an 'ask' bot and every money tool become approval cards instead of running.
 export async function runBot(
   store: Store,
   args: { ws: Workspace; bot: Bot; run: Run; input: string; history?: ChatMessage[]; onEvent?: (e: EngineEvent) => void; signal?: AbortSignal },
@@ -57,22 +91,25 @@ export async function runBot(
   const conns = await store.connections(ws.id);
   const tools = toolsFor(def.tools, conns);
   const byName = new Map(tools.map((t) => [t.name, t]));
+  const team = (await store.bots(ws.id)).filter((b) => b.enabled);
   const ctx: ToolCtx = { store, ws, bot, run, conns, usage: { searches: 0 }, emit };
   const day = localDate(ws.timezone, new Date());
+  const started = Date.now();
 
-  const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ws, bot, tools) }, ...(args.history ?? []), { role: "user", content: args.input }];
+  const messages: ChatMessage[] = [{ role: "system", content: await systemPrompt(store, ws, bot, tools, team) }, ...(args.history ?? []), { role: "user", content: args.input }];
   const schemas = tools.map((t) => ({ type: "function" as const, function: { name: t.name, description: t.description, parameters: t.parameters } }));
   let usage = noUsage(), spent = 0, text = "", status: RunResult["status"] = "done", tier: Tier = def.tier, usedTools = false;
   const actions: string[] = [];
 
-  await store.updateRun(run.id, { status: "running", model: def.tier, started_at: new Date().toISOString() } as Partial<Run>);
+  await store.updateRun(run.id, { status: "running", model: def.tier, started_at: new Date().toISOString() });
+  await setStatus(ctx, "working", "Thinking it through");
   const overBudget = async () => (await store.usageToday(ws.id, day)) + spent >= Number(ws.daily_budget_usd);
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       if (await overBudget()) {
         status = "stopped";
-        text ||= "Paused: today's budget is used up. I'll pick this up tomorrow, or raise the daily budget in settings.";
+        text ||= "Paused: today's budget is used up. I'll pick this up on my next shift.";
         emit({ type: "stopped", reason: "budget" });
         break;
       }
@@ -88,15 +125,21 @@ export async function runBot(
       usedTools = true;
       messages.push({ role: "assistant", content: reply.content || null, tool_calls: reply.toolCalls });
       for (const call of reply.toolCalls) {
-        const result = await callTool(ctx, byName.get(call.function.name), call.function.name, call.function.arguments, actions);
+        const tool = byName.get(call.function.name);
+        if (tool && doing[tool.name]) await setStatus(ctx, "working", doing[tool.name]);
+        const result = await callTool(ctx, tool, call.function.name, call.function.arguments, actions);
         messages.push({ role: "tool", tool_call_id: call.id, content: clip(JSON.stringify(result)) });
       }
-      if (step === MAX_STEPS - 1) text = reply.content || "I ran out of steps before finishing. Ask me to continue.";
+      if (step === MAX_STEPS - 1) {
+        status = "partial";
+        text = reply.content || "I ran out of steps before finishing. Here's where I got to; ask me to continue.";
+      }
     }
 
-    // Research gathers with Flash, then Pro writes the report from everything it found.
+    // Research-style bots gather with Flash, then Pro writes the report from everything they found.
     if (def.proWriteUp && usedTools && status === "done" && !(await overBudget())) {
       tier = "pro";
+      await setStatus(ctx, "working", "Writing it up");
       messages.push({ role: "assistant", content: text || null }, { role: "user", content: def.proWriteUp });
       emit({ type: "text", delta: "\n\n" });
       const report = await chat("pro", messages, { onText: (d) => emit({ type: "text", delta: d }), maxTokens: 12000, signal: args.signal });
@@ -109,21 +152,36 @@ export async function runBot(
     text = `Something went wrong: ${(e as Error).message}`;
   }
 
+  const seconds = Math.round((Date.now() - started) / 1000);
   spent += ctx.usage.searches * SEARCH_COST_USD;
-  await store.addUsage(ws.id, day, spent, ctx.usage.searches);
+  await store.addUsage(ws.id, day, spent, ctx.usage.searches, def.category === "research" ? seconds : 0);
   await store.updateRun(run.id, {
-    status,
-    model: tier,
-    tokens_hit: usage.hit,
-    tokens_miss: usage.miss,
-    tokens_out: usage.out,
-    searches: ctx.usage.searches,
-    cost_usd: spent,
-    summary: text.slice(0, 4000),
-    error: status === "failed" ? text : null,
-    finished_at: new Date().toISOString(),
-  } as Partial<Run>);
+    status, model: tier, tokens_hit: usage.hit, tokens_miss: usage.miss, tokens_out: usage.out, searches: ctx.usage.searches, seconds, cost_usd: spent,
+    summary: text.slice(0, 4000), error: status === "failed" ? text : null, finished_at: new Date().toISOString(),
+  });
+  await settleStatus(store, ws, bot, emit, status === "failed" ? text : null);
   return { text, status, actions, usage, costUsd: spent };
+}
+
+// After a run (or a decision): needs you if cards are waiting, blocked if a connection it needs is broken,
+// failed if the run failed, otherwise idle until its next shift.
+export async function settleStatus(store: Store, ws: Workspace, bot: Bot, emit: (e: EngineEvent) => void = () => {}, failure: string | null = null) {
+  const [pending, conns] = await Promise.all([store.actions(ws.id, "pending"), store.connections(ws.id)]);
+  const mine = pending.filter((a) => a.bot_id === bot.id).length;
+  const def = botDef(bot.kind);
+  const broken = conns.find((c) => c.status !== "ok" && c.kinds.some((k) => (def.needs as string[]).includes(k)));
+  const ctx = { store, bot, emit };
+  if (!bot.enabled) return setStatus(ctx, "paused", "Paused");
+  if (broken) {
+    await store.updateBot(bot.id, { blocked_reason: `${broken.provider} connection lost` });
+    return setStatus(ctx, "blocked", `Blocked: ${broken.provider} connection lost`);
+  }
+  if (bot.blocked_reason) await store.updateBot(bot.id, { blocked_reason: null });
+  if (mine) return setStatus(ctx, "needs_you", `${mine} ${mine === 1 ? "draft" : "drafts"} for you`);
+  if (failure) return setStatus(ctx, "failed", "Couldn't finish the last run");
+  const next = bot.next_run_at ? new Date(bot.next_run_at) : null;
+  const when = next ? next.toLocaleTimeString("en-US", { timeZone: ws.timezone, hour: "numeric", minute: "2-digit" }) : null;
+  return setStatus(ctx, "idle", when ? `Idle · next check ${when}` : "Works when you ask");
 }
 
 const clip = (s: string) => (s.length > MAX_TOOL_RESULT ? s.slice(0, MAX_TOOL_RESULT) + "… (cut)" : s);
@@ -137,15 +195,30 @@ async function callTool(ctx: ToolCtx, tool: Tool | undefined, name: string, rawA
     return { error: "The arguments weren't valid JSON. Try again." };
   }
   ctx.emit({ type: "tool", name, args });
-  if (tool.risk === "outward" && ctx.bot.approval === "ask") {
-    const title = tool.title?.(args) ?? `${ctx.bot.name}: ${name}`;
-    const action = await ctx.store.createAction({ workspace_id: ctx.ws.id, bot_id: ctx.bot.id, run_id: ctx.run?.id ?? null, tool: name, title, payload: args });
+
+  if (tool.guard) {
+    const refused = await tool.guard(ctx, args);
+    if (refused) {
+      ctx.emit({ type: "tool_result", name, ok: false });
+      return { refused };
+    }
+  }
+
+  const needsApproval = tool.risk === "money" || (tool.risk === "message" && ctx.bot.approval === "ask");
+  if (needsApproval) {
+    const card = tool.card?.(args) ?? { title: `${ctx.bot.name}: ${name}` };
+    const action = await ctx.store.createAction({
+      workspace_id: ctx.ws.id, bot_id: ctx.bot.id, run_id: ctx.run?.id ?? null, thread_id: ctx.run?.thread_id ?? null,
+      tool: name, risk: tool.risk === "money" ? "money" : "message", title: card.title, payload: args,
+      counterparty: card.counterparty ?? null, amount_cents: card.amount_cents ?? null, currency: card.currency ?? null,
+      group_key: typeof args.group === "string" && args.group ? args.group : null,
+    });
     actions.push(action.id);
-    ctx.emit({ type: "action", id: action.id, title, tool: name });
-    const room = await ctx.store.room(ctx.ws.id);
-    await ctx.store.addMessage({ workspace_id: ctx.ws.id, thread_id: room.id, role: "bot", bot_id: ctx.bot.id, run_id: ctx.run?.id ?? null, content: `Waiting for your OK: ${title}`, data: { action_id: action.id } });
+    ctx.emit({ type: "action", id: action.id, title: card.title, tool: name, risk: tool.risk });
+    await ctx.store.log(ctx.ws.id, { actor_type: "bot", actor_id: ctx.bot.id, action: "drafted", target: card.title, data: { action_id: action.id } });
     return { queued_for_approval: true, action_id: action.id, note: "The owner will approve, edit or reject this. Don't call it again." };
   }
+
   try {
     const result = await tool.run(ctx, args);
     ctx.emit({ type: "tool_result", name, ok: true });

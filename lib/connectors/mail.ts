@@ -60,6 +60,32 @@ export function calendarFor(store: Store, conns: Connection[]): CalendarClient {
   return c.provider === "google" ? googleCalendar(store, c) : outlookCalendar(store, c);
 }
 
+// Open meeting times inside working hours, on 30-minute marks, avoiding every event.
+export function freeSlots(
+  events: CalendarEvent[],
+  o: { from: Date; to: Date; minutes: number; count: number; timeZone: string; hours: { start: string; end: string; days: number[] } },
+) {
+  const busy = events.map((e) => [new Date(e.start).getTime(), new Date(e.end).getTime()] as const);
+  const out: { start: string; end: string }[] = [];
+  const step = 30 * 60_000, len = o.minutes * 60_000;
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: o.timeZone, hourCycle: "h23", weekday: "short", hour: "2-digit", minute: "2-digit" });
+  const days: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  let t = Math.ceil(Math.max(o.from.getTime(), Date.now() + 60 * 60_000) / step) * step; // at least an hour from now
+  while (t + len <= o.to.getTime() && out.length < o.count) {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+    const hm = `${p.hour}:${p.minute}`;
+    const endHm = Object.fromEntries(fmt.formatToParts(new Date(t + len)).map((x) => [x.type, x.value]));
+    const inHours = o.hours.days.includes(days[p.weekday]) && hm >= o.hours.start && `${endHm.hour}:${endHm.minute}` <= o.hours.end && endHm.weekday === p.weekday;
+    if (inHours && !busy.some(([a, b]) => t < b && t + len > a)) {
+      out.push({ start: new Date(t).toISOString(), end: new Date(t + len).toISOString() });
+      t += 2 * 60 * 60_000; // spread the options out
+      continue;
+    }
+    t += step;
+  }
+  return out;
+}
+
 // Plain text from an HTML email body: good enough for a model to read.
 export function htmlToText(html: string) {
   return html
