@@ -1,4 +1,5 @@
 import { botDef, castOf } from "./bots";
+import { ownerAlert } from "./alerts";
 import { hubspotPull, sheetsPull } from "./connectors/crm";
 import { briefEmail, sendMail } from "./email";
 import { briefDue, runNow } from "./engine/flows";
@@ -108,6 +109,7 @@ export async function connectionAlerts(store: Store) {
 export async function purge() {
   const db = admin();
   const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  await db.from("error_log").delete().lt("at", cutoff); // errors are kept 30 days
   const { data: gone } = await db.from("workspaces").delete().lt("deleted_at", cutoff).select("id");
   for (const ws of (await db.from("workspaces").select("id, plan, extra_seats")).data ?? []) {
     const days = limits(ws as Workspace).logDays;
@@ -115,4 +117,26 @@ export async function purge() {
   }
   await db.from("device_codes").delete().lt("expires_at", new Date().toISOString());
   return gone?.length ?? 0;
+}
+
+// Once a day (9 AM in Toronto, 13:00 UTC), if anything went wrong in the last 24 hours: one email to the people
+// running Nightshift with how many errors, where, and the most common ones. A "digest" row marks it sent.
+export async function errorDigest(now = new Date()) {
+  if (now.getUTCHours() !== 13) return "not now";
+  const db = admin();
+  const since = new Date(now.getTime() - 24 * 3_600_000).toISOString();
+  const { data: sent } = await db.from("error_log").select("id").eq("source", "digest").gte("at", new Date(now.getTime() - 20 * 3_600_000).toISOString()).limit(1);
+  if (sent?.length) return "already sent";
+  const { data: rows } = await db.from("error_log").select("source, message").neq("source", "digest").gte("at", since).limit(2000);
+  await db.from("error_log").insert({ source: "digest", message: `${rows?.length ?? 0} errors` });
+  if (!rows?.length) return "none";
+  const count = (key: (r: { source: string; message: string }) => string) =>
+    [...rows.reduce((m, r) => m.set(key(r), (m.get(key(r)) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const where = count((r) => r.source), what = count((r) => r.message.slice(0, 90));
+  await ownerAlert({
+    kind: "errors", heading: `${rows.length} error${rows.length === 1 ? "" : "s"} in the last day`,
+    lead: `Mostly from ${where[0][0]}. The admin view has every one, with details.`,
+    rows: [...where.map(([s, n]) => [s, `${n}×`] as [string, string]), ...what.slice(0, 3).map(([m, n]) => [`${n}×`, m] as [string, string])],
+  });
+  return `sent (${rows.length})`;
 }

@@ -16,7 +16,8 @@ type W = {
 };
 type U = { id: string; email: string; provider: string; created_at: string; last_sign_in_at: string | null; workspaces: { id: string; role: string; name: string }[] };
 type Run = { id: string; workspace_id: string; workspace: string; status: string; trigger: string; model: string | null; cost_usd: number; error: string | null; created_at: string };
-type Overview = { totals: Record<string, number>; by_plan: Record<string, number>; by_provider: Record<string, number>; workspaces: W[]; users: U[]; failed_runs: Run[] };
+type Err = { id: number; at: string; source: string; message: string; workspace_id: string | null; workspace: string | null; detail: { stack?: string } };
+type Overview = { totals: Record<string, number>; by_plan: Record<string, number>; by_provider: Record<string, number>; workspaces: W[]; users: U[]; failed_runs: Run[]; errors: Err[] };
 
 const usd = (n: number, d = 2) => `$${Number(n).toFixed(d)}`;
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—");
@@ -53,7 +54,8 @@ const H = ({ children }: { children: ReactNode }) => <h2 style={{ fontSize: 15, 
 
 export default function AdminPage() {
   const o = useApi<Overview>("/api/admin", { poll: 60_000 });
-  const [tab, setTab] = useState<"workspaces" | "users" | "failed">("workspaces");
+  const [tab, setTab] = useState<"workspaces" | "users" | "failed" | "errors">("workspaces");
+  const [openErr, setOpenErr] = useState<number | null>(null);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const find = q.trim().toLowerCase();
@@ -88,12 +90,13 @@ export default function AdminPage() {
             <Stat label="Model + search spend" value={usd(t.spend_today)} sub={`today · ${usd(t.spend_30d)} in 30 days`} />
             <Stat label="Broken connections" value={t.broken_connections} tone={t.broken_connections ? "bad" : undefined} sub={Object.entries(o.data!.by_provider).map(([p, n]) => `${p} ${n}`).join(" · ") || "none connected"} />
             <Stat label="Cards waiting" value={t.waiting} sub="across all workspaces" />
+            <Stat label="Server errors, 24 h" value={t.errors_24h ?? 0} tone={t.errors_24h ? "bad" : "good"} sub="details in the Errors tab" />
           </div>
           <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 8 }}>By plan: {Object.entries(o.data!.by_plan).map(([p, n]) => `${p} ${n}`).join(" · ")}</div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", margin: "24px 0 12px", flexWrap: "wrap" }}>
             <div role="tablist" style={{ display: "flex", gap: 4, background: "var(--paper-2)", padding: 4, borderRadius: 10 }}>
-              {([["workspaces", `Workspaces (${o.data!.workspaces.length})`], ["users", `Users (${o.data!.users.length})`], ["failed", `Failed runs (${o.data!.failed_runs.length})`]] as const).map(([k, label]) => (
+              {([["workspaces", `Workspaces (${o.data!.workspaces.length})`], ["users", `Users (${o.data!.users.length})`], ["failed", `Failed runs (${o.data!.failed_runs.length})`], ["errors", `Errors (${o.data!.errors.length})`]] as const).map(([k, label]) => (
                 <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ border: 0, borderRadius: 7, padding: "7px 12px", font: "inherit", fontSize: 13.5, fontWeight: 600, cursor: "pointer", background: tab === k ? "var(--card)" : "transparent", color: tab === k ? "var(--ink)" : "var(--muted)", boxShadow: tab === k ? "0 1px 2px rgba(0,0,0,.08)" : "none" }}>{label}</button>
               ))}
             </div>
@@ -144,6 +147,23 @@ export default function AdminPage() {
                 </tr>
               ))}
             </Table>
+          )}
+
+          {tab === "errors" && (
+            o.data!.errors.length === 0 ? <div style={{ color: "var(--muted)", padding: "16px 4px" }}>No server errors in the last 30 days.</div> : (
+            <Table head={["When", "Where", "What", "Workspace"]}>
+              {o.data!.errors.map((e) => (
+                <tr key={e.id} onClick={() => setOpenErr(openErr === e.id ? null : e.id)} style={{ cursor: "pointer" }}>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{ago(e.at)}</td>
+                  <td style={{ ...td, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{e.source}</td>
+                  <td style={{ ...td, color: "var(--bad)", fontSize: 13, maxWidth: 620 }}>
+                    {e.message}
+                    {openErr === e.id && e.detail?.stack && <pre style={{ margin: "8px 0 0", whiteSpace: "pre-wrap", fontSize: 11.5, color: "var(--ink-2)", background: "var(--paper-2)", padding: 10, borderRadius: 8 }}>{e.detail.stack}</pre>}
+                  </td>
+                  <td style={td}>{e.workspace ?? "—"}</td>
+                </tr>
+              ))}
+            </Table>)
           )}
 
           {open && <Detail id={open} onClose={() => setOpen(null)} />}

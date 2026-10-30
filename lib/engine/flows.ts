@@ -1,6 +1,7 @@
 import { botDef, CASTS, chipsFor, starters, taskFor, teamLabel, TEMPLATES, type BotTemplate, type Industry } from "../bots";
 import { CORE_IDS } from "../bots/casts";
 import type { Store } from "../store";
+import { recordError } from "../errors";
 import { trialPaused } from "../plans";
 import { toolByName } from "../tools";
 import type { Action, Bot, BotKind, Role, Run, Workspace } from "../types";
@@ -249,7 +250,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
       await reportInRoom(store, ws, bot, run, result);
       done.push({ bot: bot.kind, trigger: run.trigger, status: result.status });
     } catch (e) {
-      console.error("tick: queued run", run.id, e);
+      await recordError("tick: queued run", e, { workspace_id: run.workspace_id, run_id: run.id });
       await store.updateRun(run.id, { status: "failed", error: (e as Error).message, finished_at: new Date().toISOString() }).catch(() => {});
     }
   }
@@ -296,7 +297,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
       if (!frequent || result.actions.length || result.status !== "done") await reportInRoom(store, ws, bot, run, result);
       done.push({ bot: bot.kind, trigger: "schedule", status: result.status });
     } catch (e) {
-      console.error("tick: scheduled bot", bot.id, e); // one bot's trouble doesn't stop the others
+      await recordError("tick: scheduled bot", e, { workspace_id: bot.workspace_id, bot: bot.kind }); // one bot's trouble doesn't stop the others
     }
   }
   return done;

@@ -1,6 +1,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { HttpError, sessionClient } from "./auth";
+import { recordError } from "./errors";
 import { PLANS, SEAT_PRICE } from "./plans";
 import { adminEmails, isStaff } from "./staff";
 import { admin } from "./store-supabase";
@@ -32,7 +33,7 @@ export function adminRoute<C = unknown>(fn: (req: Request, ctx: C) => Promise<Re
     } catch (e) {
       unstable_rethrow(e);
       const status = e instanceof HttpError ? e.status : 500;
-      if (status >= 500) console.error(e);
+      if (status >= 500) await recordError(new URL(req.url).pathname, e);
       return Response.json({ error: (e as Error).message, code: (e as { code?: string }).code }, { status });
     }
   };
@@ -62,6 +63,9 @@ export async function adminOverview() {
     db.from("connections").select("workspace_id, provider, account, status, error, broken_at, last_synced_at, created_at").limit(10000),
     db.from("actions").select("workspace_id").eq("status", "pending").limit(10000),
   ]);
+  // before migration 0004 the table isn't there: no errors to show rather than a failed page
+  const errs = await db.from("error_log").select("id, at, source, message, workspace_id, detail").neq("source", "digest").order("at", { ascending: false }).limit(100);
+  const errors = errs.error ? [] : (errs.data ?? []);
   for (const r of [ws, members, bots, runs, usage, conns, pending]) if (r.error) throw new Error(r.error.message);
   const emailOf = new Map(people.map((p) => [p.id, p.email]));
   const by = <T extends { workspace_id: string }>(rows: T[]) => rows.reduce((m, r) => m.set(r.workspace_id, [...(m.get(r.workspace_id) ?? []), r]), new Map<string, T[]>());
@@ -107,12 +111,14 @@ export async function adminOverview() {
       spend_30d: sum(usage.data!.map((u) => Number(u.cost_usd))),
       broken_connections: conns.data!.filter((c) => c.status !== "ok").length,
       waiting: pending.data!.length,
+      errors_24h: errors.filter((e) => e.at >= since1).length,
     },
     by_plan: Object.fromEntries(["trial", "solo", "studio", "team", "canceled"].map((p) => [p, live.filter((w) => w.plan === p).length])),
     by_provider: conns.data!.reduce<Record<string, number>>((m, c) => ({ ...m, [c.provider]: (m[c.provider] ?? 0) + 1 }), {}),
     workspaces,
     users: people.map((p) => ({ ...p, workspaces: members.data!.filter((m) => m.user_id === p.id).map((m) => ({ id: m.workspace_id, role: m.role, name: ws.data!.find((w) => w.id === m.workspace_id)?.name ?? "?" })) })),
     failed_runs: allRuns.filter((r) => r.status === "failed").slice(0, 50).map((r) => ({ ...r, workspace: ws.data!.find((w) => w.id === r.workspace_id)?.name ?? "?" })),
+    errors: errors.map((e) => ({ ...e, workspace: ws.data!.find((w) => w.id === e.workspace_id)?.name ?? null })),
   };
 }
 

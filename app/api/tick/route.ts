@@ -1,7 +1,8 @@
 import { connection } from "next/server";
 import { safeEqual } from "@/lib/crypto";
 import { tick } from "@/lib/engine/flows";
-import { briefs, connectionAlerts, dueRetries, purge, syncCrm } from "@/lib/maintenance";
+import { recordError } from "@/lib/errors";
+import { briefs, connectionAlerts, dueRetries, errorDigest, purge, syncCrm } from "@/lib/maintenance";
 import { supabaseStore } from "@/lib/store-supabase";
 
 export const maxDuration = 300;
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     try {
       return await fn();
     } catch (e) {
-      console.error(`tick ${name}`, e);
+      await recordError(`tick: ${name}`, e);
       return `failed: ${(e as Error).message}`;
     }
   };
@@ -28,5 +29,6 @@ export async function POST(req: Request) {
   const brief = await step("briefs", () => briefs(store));
   const crm = Date.now() - started < 240_000 ? await step("crm", () => syncCrm(store)) : "skipped";
   const purged = new Date().getUTCMinutes() < 5 ? await step("purge", () => purge()) : 0; // once an hour
-  return Response.json({ ran, brief, crm, alerts, purged, ms: Date.now() - started });
+  const errors = await step("errors", () => errorDigest()); // once a day, only if something went wrong
+  return Response.json({ ran, brief, crm, alerts, purged, errors, ms: Date.now() - started });
 }

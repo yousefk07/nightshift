@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { sha256 } from "./crypto";
+import { recordError } from "./errors";
 import { ownerAlert } from "./alerts";
 import { exactly } from "./like";
 import { isStaff } from "./staff";
@@ -157,7 +158,7 @@ export function route<C = unknown>(fn: (req: Request, me: Caller, ctx: C) => Pro
     } catch (e) {
       unstable_rethrow(e); // Next.js uses throws internally; those aren't ours to answer
       const status = e instanceof HttpError ? e.status : (e as { status?: number }).status ?? 500;
-      if (status >= 500) console.error(e);
+      if (status >= 500) await recordError(new URL(req.url).pathname, e);
       return Response.json({ error: (e as Error).message }, { status });
     }
   };
@@ -172,7 +173,7 @@ export function open<C = unknown>(fn: (req: Request, ctx: C) => Promise<Response
     } catch (e) {
       unstable_rethrow(e);
       const status = e instanceof HttpError ? e.status : 500;
-      if (status >= 500) console.error(e);
+      if (status >= 500) await recordError(new URL(req.url).pathname, e);
       return Response.json({ error: (e as Error).message }, { status });
     }
   };
