@@ -3,7 +3,7 @@
 
 export interface LegalDoc { title: string; effective: string; short: string[]; sections?: { h: string; body: string }[] }
 
-const CONTACT = "hello@nightshiftai.ca"; // the public contact everywhere on the site
+const CONTACT = "admin@nightshiftai.ca"; // the public contact everywhere on the site
 
 export const DOCS: Record<string, LegalDoc> = {
   privacy: {

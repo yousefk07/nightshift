@@ -14,7 +14,7 @@ Reading mail needs a restricted scope (there's no non-restricted way to read Gma
 ## 1. Branding (Google Auth Platform → Branding)
 
 - App name: **Nightshift**
-- Support email: hello@nightshiftai.ca (must be an address you can receive at)
+- Support email: admin@nightshiftai.ca (must be an address you can receive at)
 - App logo: 120×120 PNG, the bot on the gold tile (`public/icon.png`, resized)
 - Home page: https://www.nightshiftai.ca
 - Privacy policy: https://www.nightshiftai.ca/legal/privacy

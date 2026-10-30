@@ -27,7 +27,7 @@ export function SiteFooter() {
   const cols: [string, [string, string][]][] = [
     ["Product", [["/#team", "The team"], ["/pricing", "Pricing"], ["/docs", "CLI"], ["/help", "Changelog"]]],
     ["Resources", [["/help", "Help center"], ["/docs", "Docs & API"], ["https://www.vercel-status.com", "System status"]]],
-    ["Company", [["/help#contact", "About"], ["mailto:hello@nightshiftai.ca", "Contact"]]],
+    ["Company", [["/help#contact", "About"], ["mailto:admin@nightshiftai.ca", "Contact"]]],
     ["Legal", [["/legal/privacy", "Privacy"], ["/legal/terms", "Terms"], ["/security", "Security"], ["/legal/dpa", "DPA"]]],
   ];
   return (

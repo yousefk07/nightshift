@@ -30,7 +30,7 @@ export default function Help() {
           <div style={{ fontSize: 20, fontWeight: 700 }}>Still stuck?</div>
           <div style={{ color: "#d6c8bb" }}>A real person answers within one business day, usually much sooner.</div>
         </div>
-        <a href="mailto:hello@nightshiftai.ca" style={{ fontSize: 15, fontWeight: 600, padding: "12px 20px", borderRadius: 10, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Contact support</a>
+        <a href="mailto:admin@nightshiftai.ca" style={{ fontSize: 15, fontWeight: 600, padding: "12px 20px", borderRadius: 10, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Contact support</a>
         <Link href="/docs" style={{ color: "#f0c27a" }}>CLI &amp; API docs →</Link>
       </div>
     </SitePage>
