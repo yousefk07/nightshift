@@ -93,6 +93,11 @@ export function memStore(opts: { budget?: number; conns?: Partial<Connection>[];
     },
     updateRun: async (id, patch) => void Object.assign(db.runs.find((r) => r.id === id)!, patch),
     run: async (_ws, id) => db.runs.find((r) => r.id === id) ?? null,
+    claimRun: async (id) => {
+      const r = db.runs.find((x) => x.id === id && x.status === "queued");
+      if (r) r.status = "running";
+      return r ?? null;
+    },
     claimQueuedRuns: async (limit) => {
       const q = db.runs.filter((r) => r.status === "queued").slice(0, limit);
       q.forEach((r) => (r.status = "running"));

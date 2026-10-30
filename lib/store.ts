@@ -29,6 +29,7 @@ export interface Store {
   updateRun(id: string, patch: Partial<Run> & { started_at?: string; finished_at?: string }): Promise<void>;
   run(ws: string, id: string): Promise<Run | null>;
   claimQueuedRuns(limit: number): Promise<Run[]>;
+  claimRun(id: string): Promise<Run | null>; // that one queued run, if nobody took it yet
   runs(ws: string, opts?: { botId?: string; since?: string; limit?: number }): Promise<Run[]>;
 
   createAction(a: Pick<Action, "workspace_id" | "bot_id" | "run_id" | "thread_id" | "tool" | "risk" | "title" | "payload"> & Partial<Pick<Action, "counterparty" | "amount_cents" | "currency" | "group_key">>): Promise<Action>;

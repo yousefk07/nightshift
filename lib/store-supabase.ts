@@ -141,6 +141,10 @@ export function supabaseStore(db = admin()): Store {
     async claimQueuedRuns(limit) {
       return (await q<Run[]>(db.rpc("claim_queued_runs", { lim: limit }))).map(run_);
     },
+    async claimRun(id) {
+      const r = await q<Run | null>(db.from("runs").update({ status: "running", started_at: new Date().toISOString() }).eq("id", id).eq("status", "queued").select().maybeSingle());
+      return r && run_(r);
+    },
     async runs(ws, opts = {}) {
       let query = db.from("runs").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(opts.limit ?? 50);
       if (opts.botId) query = query.eq("bot_id", opts.botId);

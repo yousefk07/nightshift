@@ -211,6 +211,28 @@ export async function scheduleRetry(store: Store, ws: Workspace, runId: string, 
   return { retry_at: at.toISOString() };
 }
 
+// Bots only work once onboarding is done, and not once the workspace is deleted, canceled or past its trial.
+export const canWork = (ws: Workspace, now = new Date()) => !trialPaused(ws) && !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
+
+// One claimed job (a hand-off, a room job, a revision): run it and report in the room. The tick drains these;
+// the room starts its own straight away so "@Penny hello" doesn't wait for the next tick.
+export async function runQueued(store: Store, ws: Workspace, run: Run, now = new Date()) {
+  const bot = (await store.bots(ws.id)).find((b) => b.id === run.bot_id);
+  if (!bot?.enabled || !canWork(ws, now)) {
+    await store.updateRun(run.id, { status: "stopped", error: bot?.enabled ? "Plan inactive" : "Bot is paused", finished_at: new Date().toISOString() });
+    if (bot) await settleStatus(store, ws, bot); // not left on "Reading the room"
+    return null;
+  }
+  const history = run.thread_id ? historyToChat(await store.messages(run.thread_id, { limit: 20 }), bot.id) : [];
+  const result = await runBot(store, { ws, bot, run, input: run.input, history });
+  if (run.trigger === "revise") {
+    const old = (await store.actions(ws.id, "revising")).filter((a) => a.bot_id === bot.id);
+    for (const a of old) await store.updateAction(a.id, { status: result.actions.length ? "rejected" : "pending" }); // a new card replaces it
+  }
+  await reportInRoom(store, ws, bot, run, result);
+  return { bot: bot.kind, trigger: run.trigger, status: result.status };
+}
+
 // ---- the 5-minute tick (pg_cron calls /api/tick) ----
 // Order: approved actions whose undo window passed, queued work (hand-offs, room jobs, revisions), retries,
 // then bots whose shift is due, until the time budget is spent.
@@ -225,7 +247,7 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
     return workspaces.get(id)!;
   };
   // nothing runs until onboarding is done, or once the workspace is deleted, canceled or past its trial
-  const active = (ws: Workspace) => !trialPaused(ws) && !!ws.onboarded_at && !ws.deleted_at && ws.plan !== "canceled" && !(ws.plan === "trial" && new Date(ws.trial_ends_at) < now);
+  const active = (ws: Workspace) => canWork(ws, now);
 
   await store.reapStuck(new Date(now.getTime() - 15 * 60_000));
   await executeDue(store);
@@ -235,20 +257,8 @@ export async function tick(store: Store, opts: { now?: Date; deadlineMs?: number
     const [run] = await store.claimQueuedRuns(1);
     if (!run) break;
     try {
-      const ws = await wsOf(run.workspace_id);
-      const bot = (await store.bots(ws.id)).find((b) => b.id === run.bot_id);
-      if (!bot?.enabled || !active(ws)) {
-        await store.updateRun(run.id, { status: "stopped", error: bot?.enabled ? "Plan inactive" : "Bot is paused" });
-        continue;
-      }
-      const history = run.thread_id ? historyToChat(await store.messages(run.thread_id, { limit: 20 }), bot.id) : [];
-      const result = await runBot(store, { ws, bot, run, input: run.input, history });
-      if (run.trigger === "revise") {
-        const old = (await store.actions(ws.id, "revising")).filter((a) => a.bot_id === bot.id);
-        for (const a of old) await store.updateAction(a.id, { status: result.actions.length ? "rejected" : "pending" }); // a new card replaces it
-      }
-      await reportInRoom(store, ws, bot, run, result);
-      done.push({ bot: bot.kind, trigger: run.trigger, status: result.status });
+      const r = await runQueued(store, await wsOf(run.workspace_id), run, now);
+      if (r) done.push(r);
     } catch (e) {
       await recordError("tick: queued run", e, { workspace_id: run.workspace_id, run_id: run.id });
       await store.updateRun(run.id, { status: "failed", error: (e as Error).message, finished_at: new Date().toISOString() }).catch(() => {});
