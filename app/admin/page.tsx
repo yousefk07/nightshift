@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import { Prose } from "@/components/Prose";
 import { Button, Input, Pill } from "@/components/ui";
-import { ago, api, money, useApi } from "@/lib/client";
+import { ago, api, money, supabase, useApi } from "@/lib/client";
 
 // Admin: the whole of Nightshift, read-only. Only ADMIN_EMAILS get past the API (lib/admin.ts).
 
@@ -66,15 +66,15 @@ export default function AdminPage() {
   const list = useMemo(() => (o.data?.workspaces ?? []).filter((w) => !find || [w.name, w.owner, w.billing_email, w.industry, w.id].some((v) => v?.toLowerCase().includes(find))), [o.data, find]);
   const people = useMemo(() => (o.data?.users ?? []).filter((u) => !find || u.email.toLowerCase().includes(find) || u.workspaces.some((w) => w.name.toLowerCase().includes(find))), [o.data, find]);
 
+  if (o.error?.code === "two_step") return <Shell><TwoStep onDone={o.refresh} /></Shell>;
   if (o.error) {
-    const twoStep = o.error.code === "two_step";
     return (
       <Shell>
         <div style={{ maxWidth: 460, margin: "80px auto", textAlign: "center", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{o.error.status === 401 ? "Sign in as the admin" : twoStep ? "Turn on the authenticator step" : "Not an admin account"}</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{o.error.status === 401 ? "Sign in as the admin" : "Not an admin account"}</div>
           <div style={{ color: "var(--muted)" }}>{o.error.message}</div>
-          <Link href={o.error.status === 401 ? "/signin?next=/admin" : twoStep ? "/settings/security" : "/office"} style={{ color: "var(--accent)", fontWeight: 600 }}>
-            {o.error.status === 401 ? "Sign in" : twoStep ? "Open Security settings" : "Back to the app"}
+          <Link href={o.error.status === 401 ? "/signin?next=/admin" : "/office"} style={{ color: "var(--accent)", fontWeight: 600 }}>
+            {o.error.status === 401 ? "Sign in" : "Back to the app"}
           </Link>
         </div>
       </Shell>
@@ -352,5 +352,39 @@ function Detail({ id, onClose }: { id: string; onClose: () => void }) {
         </>
       )}
     </section>
+  );
+}
+
+// Admin needs the authenticator code in this session: ask for it here when an authenticator is set up.
+function TwoStep({ onDone }: { onDone: () => void }) {
+  const [factor, setFactor] = useState<string | null | undefined>(undefined);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    supabase().auth.mfa.listFactors().then(({ data }) => setFactor(data?.totp.find((f) => f.status === "verified")?.id ?? null));
+  }, []);
+  const verify = async () => {
+    setError(null);
+    const { error: e } = await supabase().auth.mfa.challengeAndVerify({ factorId: factor!, code: code.trim() });
+    if (e) return setError(e.message.includes("Invalid") ? "That code didn't work. Try the newest one." : e.message);
+    onDone();
+  };
+  return (
+    <div style={{ maxWidth: 380, margin: "80px auto", textAlign: "center", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ fontSize: 20, fontWeight: 700 }}>{factor === null ? "Turn on the authenticator step" : "Enter your authenticator code"}</div>
+      {factor === null ? (
+        <>
+          <div style={{ color: "var(--muted)" }}>Admins need an authenticator app. Set one up, then come back here.</div>
+          <Link href="/settings/security" style={{ color: "var(--accent)", fontWeight: 600 }}>Open Security settings</Link>
+        </>
+      ) : factor === undefined ? <div style={{ color: "var(--muted)" }}>Checking…</div> : (
+        <form onSubmit={(e) => { e.preventDefault(); verify(); }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ color: "var(--muted)" }}>The 6-digit code from your authenticator app for Nightshift.</div>
+          <Input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/D/g, ""))} placeholder="123456" style={{ textAlign: "center", fontSize: 22, letterSpacing: ".3em" }} />
+          {error && <div style={{ color: "var(--bad)", fontSize: 14 }}>{error}</div>}
+          <Button type="submit" disabled={code.length !== 6}>Open admin</Button>
+        </form>
+      )}
+    </div>
   );
 }
