@@ -6,9 +6,10 @@ import { safeEqual } from "./crypto";
 
 export interface Prospect { business: string; email: string; niche?: string | null; city?: string | null; contact_name?: string | null }
 
+// INTEREST_KEY is its own secret so outreach links can be made on a laptop without the production ENCRYPTION_KEY
 const secret = () => {
-  const k = process.env.ENCRYPTION_KEY;
-  if (!k) throw new Error("ENCRYPTION_KEY is not set");
+  const k = process.env.INTEREST_KEY || process.env.ENCRYPTION_KEY;
+  if (!k) throw new Error("INTEREST_KEY is not set");
   return createHmac("sha256", k).update("trial-interest").digest();
 };
 const sign = (body: string) => createHmac("sha256", secret()).update(body).digest("base64url").slice(0, 22);
