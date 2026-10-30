@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import { Prose } from "@/components/Prose";
-import { Input, Pill } from "@/components/ui";
-import { ago, money, useApi } from "@/lib/client";
+import { Button, Input, Pill } from "@/components/ui";
+import { ago, api, money, useApi } from "@/lib/client";
 
 // Admin: the whole of Nightshift, read-only. Only ADMIN_EMAILS get past the API (lib/admin.ts).
 
@@ -28,6 +28,7 @@ const planText = (w: Pick<W, "plan" | "trial_ends_at" | "deleted_at" | "plan_int
   w.deleted_at ? "deleted" : w.plan === "trial" ? (w.trial_ends_at > new Date().toISOString() ? `trial · ${day(w.trial_ends_at)}` : "trial over") : `${w.plan}${w.plan_interval ? ` · ${w.plan_interval}` : ""}`;
 
 const th: CSSProperties = { textAlign: "left", fontSize: 11.5, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--faint)", padding: "10px 12px", borderBottom: "1px solid var(--line)", whiteSpace: "nowrap" };
+const STATUS: Record<string, string> = { new: "waiting", contacted: "contacted", approved: "approved, emailed", started: "trial started", not_now: "not now" };
 const td: CSSProperties = { padding: "10px 12px", borderBottom: "1px solid var(--line)", fontSize: 13.5, verticalAlign: "top" };
 
 function Table({ head, children }: { head: string[]; children: ReactNode }) {
@@ -55,6 +56,8 @@ const H = ({ children }: { children: ReactNode }) => <h2 style={{ fontSize: 15, 
 
 export default function AdminPage() {
   const o = useApi<Overview>("/api/admin", { poll: 60_000 });
+  // approving emails them the "your trial is ready" link and lets them start a workspace
+  const decide = async (id: number, status: string) => { await api("/api/admin/interest", { method: "PATCH", json: { id, status } }); o.refresh(); };
   const [tab, setTab] = useState<"workspaces" | "users" | "failed" | "errors" | "interest">("workspaces");
   const [openErr, setOpenErr] = useState<number | null>(null);
   const [q, setQ] = useState("");
@@ -91,7 +94,7 @@ export default function AdminPage() {
             <Stat label="Model + search spend" value={usd(t.spend_today)} sub={`today · ${usd(t.spend_30d)} in 30 days`} />
             <Stat label="Broken connections" value={t.broken_connections} tone={t.broken_connections ? "bad" : undefined} sub={Object.entries(o.data!.by_provider).map(([p, n]) => `${p} ${n}`).join(" · ") || "none connected"} />
             <Stat label="Cards waiting" value={t.waiting} sub="across all workspaces" />
-            <Stat label="Trial interest" value={t.interest_new ?? 0} tone={t.interest_new ? "good" : undefined} sub="new, not contacted yet" />
+            <Stat label="Trial interest" value={t.interest_new ?? 0} tone={t.interest_new ? "good" : undefined} sub="waiting for your approval" />
             <Stat label="Server errors, 24 h" value={t.errors_24h ?? 0} tone={t.errors_24h ? "bad" : "good"} sub="details in the Errors tab" />
           </div>
           <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 8 }}>By plan: {Object.entries(o.data!.by_plan).map(([p, n]) => `${p} ${n}`).join(" · ")}</div>
@@ -152,16 +155,20 @@ export default function AdminPage() {
           )}
 
           {tab === "interest" && (
-            o.data!.interest.length === 0 ? <div style={{ color: "var(--muted)", padding: "16px 4px" }}>Nobody yet. Links in outreach emails and the form at nightshiftai.ca/trial land here.</div> : (
-            <Table head={["When", "Business", "Contact", "Kind", "From", "Clicks"]}>
+            o.data!.interest.length === 0 ? <div style={{ color: "var(--muted)", padding: "16px 4px" }}>Nobody yet. Outreach links, the form at nightshiftai.ca/trial and anyone who signs in without an invite land here. Only people you approve can start a trial.</div> : (
+            <Table head={["When", "Business", "Contact", "Kind", "From", "Status", ""]}>
               {o.data!.interest.map((i) => (
                 <tr key={i.id}>
                   <td style={{ ...td, whiteSpace: "nowrap" }}>{ago(i.created_at)}</td>
                   <td style={td}><b>{i.business || "—"}</b>{i.city && <div style={{ fontSize: 12, color: "var(--faint)" }}>{i.city}</div>}</td>
                   <td style={td}><a href={`mailto:${i.email}`} style={{ color: "var(--accent)" }}>{i.email}</a>{(i.contact_name || i.phone) && <div style={{ fontSize: 12, color: "var(--faint)" }}>{[i.contact_name, i.phone].filter(Boolean).join(" · ")}</div>}</td>
                   <td style={td}>{i.niche ?? "—"}</td>
-                  <td style={td}>{i.source === "outreach" ? "email link" : "form"}</td>
-                  <td style={td}>{i.clicks}</td>
+                  <td style={td}>{i.source === "outreach" ? "email link" : i.source === "signin" ? "signed in" : "form"}{i.clicks > 1 && <div style={{ fontSize: 12, color: "var(--faint)" }}>{i.clicks} clicks</div>}</td>
+                  <td style={td}><Pill tone={i.status === "approved" || i.status === "started" ? "green" : i.status === "not_now" ? "grey" : "amber"}>{STATUS[i.status] ?? i.status}</Pill></td>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>
+                    {(i.status === "new" || i.status === "contacted" || i.status === "not_now") && <Button size="sm" onClick={() => decide(i.id, "approved")}>Approve</Button>}
+                    {(i.status === "new" || i.status === "contacted") && <Button size="sm" kind="ghost" onClick={() => decide(i.id, "not_now")} style={{ marginLeft: 6 }}>Not now</Button>}
+                  </td>
                 </tr>
               ))}
             </Table>)

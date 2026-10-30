@@ -15,6 +15,7 @@ const CREW = [{ kind: "inbox", hue: 65 }, { kind: "research", hue: 185 }, { kind
 export default function Trial() {
   const [state, setState] = useState<"saving" | "done" | "form">("saving");
   const [business, setBusiness] = useState("");
+  const [waiting, setWaiting] = useState(false);
   const [f, setF] = useState({ business: "", name: "", email: "", phone: "", website: "" });
   const [error, setError] = useState<string | null>(null);
   const sent = useRef(false);
@@ -22,7 +23,9 @@ export default function Trial() {
   useEffect(() => {
     if (sent.current) return;
     sent.current = true;
-    const t = new URLSearchParams(location.search).get("t");
+    const sp = new URLSearchParams(location.search);
+    const t = sp.get("t");
+    if (sp.has("waitlist")) { queueMicrotask(() => { setWaiting(true); setState("done"); }); return; } // signed in without an invite
     if (!t) { queueMicrotask(() => setState("form")); return; }
     api<{ business?: string }>("/api/interest", { json: { t } })
       .then((r) => { setBusiness(r.business ?? ""); setState("done"); })
@@ -59,7 +62,7 @@ export default function Trial() {
             <>
               <h1 className="pixel" style={{ margin: 0, fontSize: 34, color: "var(--gold)", lineHeight: 1.15 }}>You&apos;re on the list!</h1>
               <p style={{ margin: 0, fontSize: 17.5, lineHeight: 1.6, color: "#e6d8c8" }}>
-                Thanks{business ? <>, <b>{business}</b></> : ""}. We&apos;ll email you within two business days to set up your free trial.
+                {waiting ? "Free trials are invite-only for now, and you're on the waitlist. We'll email you as soon as yours is ready." : <>Thanks{business ? <>, <b>{business}</b></> : ""}. We&apos;ll email you within two business days to set up your free trial.</>}
               </p>
               <ol style={{ textAlign: "left", margin: "6px 0 0", padding: "18px 20px 18px 40px", background: "#2d2330", borderRadius: 14, fontSize: 15.5, lineHeight: 1.7, color: "#e6d8c8", width: "100%" }}>
                 <li>We&apos;ll reach out to pick a time that suits you: about 15 minutes.</li>

@@ -16,7 +16,7 @@ export function SiteNav({ dark = true }: { dark?: boolean }) {
       </div>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <Link href="/signin" style={{ fontSize: 15, padding: "10px 14px", color: fg, textDecoration: "none" }}>Sign in</Link>
-        <Link href="/signin?new=1" style={{ fontSize: 15, fontWeight: 600, padding: "11px 18px", borderRadius: 10, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Start free trial</Link>
+        <Link href="/trial" style={{ fontSize: 15, fontWeight: 600, padding: "11px 18px", borderRadius: 10, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Request a free trial</Link>
       </div>
       <style>{`@media (max-width: 860px) { .ns-site-links { display: none !important; } }`}</style>
     </nav>

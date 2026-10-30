@@ -9,13 +9,15 @@ create table if not exists trial_interest (
   phone text,
   niche text,
   city text,
-  source text not null default 'form',       -- 'outreach' (the emailed link) or 'form'
+  source text not null default 'form',       -- 'outreach' (the emailed link), 'form' or 'signin' (signed in, not approved)
   ip text,
   clicks int not null default 1,
-  status text not null default 'new' check (status in ('new', 'contacted', 'started', 'not_now')),
+  status text not null default 'new',        -- new, approved (may start a trial), started, not_now
   created_at timestamptz not null default now(),
   last_click_at timestamptz not null default now()
 );
 create unique index if not exists trial_interest_email on trial_interest (lower(email));
 create index if not exists trial_interest_recent on trial_interest (created_at desc);
+alter table trial_interest drop constraint if exists trial_interest_status_check;
+alter table trial_interest add constraint trial_interest_status_check check (status in ('new', 'contacted', 'approved', 'started', 'not_now'));
 alter table trial_interest enable row level security; -- no policies: nobody but the server

@@ -83,7 +83,7 @@ export default function SignIn() {
               </form>
               <ErrorLine error={error} />
               <p style={{ fontSize: 14, color: "var(--muted)" }}>
-                {isNew ? <>Already have an account? <a href="/signin">Sign in</a></> : <>New to Nightshift? <a href="/signin?new=1">Start a free trial</a></>}
+                {isNew ? <>Already have an account? <a href="/signin">Sign in</a></> : <>New to Nightshift? <a href="/trial">Request a free trial</a></>}
               </p>
             </div>
           </>

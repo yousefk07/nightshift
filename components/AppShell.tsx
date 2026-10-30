@@ -80,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     const e = me.error;
     if (e instanceof ApiError && e.status === 401) router.replace(`/signin?next=${encodeURIComponent(path)}`);
+    else if (e instanceof ApiError && e.code === "waitlist") router.replace("/trial?waitlist=1");
     else if (me.data && !me.data.workspace.onboarded_at && !path.startsWith("/onboarding") && me.data.user.role === "owner") router.replace("/onboarding");
   }, [me.error, me.data, path, router]);
 

@@ -31,7 +31,7 @@ export default function Pricing() {
         </table>
       </div>
       <p style={{ fontSize: 15, color: "#5d5148", margin: 0 }}>Yearly billing is two months free. Extra seats are $15 a month. Need more than 15 seats or a custom bot? <a href="mailto:admin@nightshiftai.ca">We&apos;ll set it up with you.</a></p>
-      <div><Link href="/signin?new=1" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, background: "#2b2320", color: "#fbf3e6", textDecoration: "none" }}>Start your 14-day trial</Link></div>
+      <div><Link href="/trial" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, background: "#2b2320", color: "#fbf3e6", textDecoration: "none" }}>Request a free trial</Link></div>
     </SitePage>
   );
 }

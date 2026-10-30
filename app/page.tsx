@@ -43,7 +43,7 @@ export default function Home() {
             AI teammates read your inbox, chase invoices, follow up on leads and do your research, then leave a brief on your desk by morning. There are specialists for over 80 kinds of business, from roofers to restaurants.
           </p>
           <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
-            <Link href="/signin?new=1" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Start your 14-day trial</Link>
+            <Link href="/trial" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Request a free trial</Link>
             <a href="#team" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, border: "1px solid #57475c", color: "#f1e6d6", textDecoration: "none" }}>Meet the team</a>
           </div>
           <div style={{ fontSize: 13.5, color: "#a99ba1" }}>No card needed. Set up in about 10 minutes.</div>
@@ -130,7 +130,7 @@ export default function Home() {
               <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 20, fontWeight: 700 }}>{t.n}</span>{t.top && <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: "#f8e2c4", color: "#8a4f14" }}>MOST PICKED</span>}</div>
               <div style={{ fontSize: 40, fontWeight: 700 }}>${price(t.p)}<span style={{ fontSize: 15, fontWeight: 400, color: "#776a5e" }}>/month{yearly ? ", billed yearly" : ""}</span></div>
               {t.lines.map((l) => <div key={l} style={{ fontSize: 15, color: "#4a3f38" }}>✓ {l}</div>)}
-              <Link href="/signin?new=1" style={{ marginTop: "auto", textAlign: "center", fontSize: 15, fontWeight: 600, padding: "12px 18px", borderRadius: 10, background: t.top ? "#2b2320" : "transparent", color: t.top ? "#fbf3e6" : "#2b2320", border: "1px solid #2b2320", textDecoration: "none" }}>Start free trial</Link>
+              <Link href="/trial" style={{ marginTop: "auto", textAlign: "center", fontSize: 15, fontWeight: 600, padding: "12px 18px", borderRadius: 10, background: t.top ? "#2b2320" : "transparent", color: t.top ? "#fbf3e6" : "#2b2320", border: "1px solid #2b2320", textDecoration: "none" }}>Request a free trial</Link>
             </div>
           ))}
         </div>

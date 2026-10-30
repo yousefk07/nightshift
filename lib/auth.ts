@@ -4,6 +4,7 @@ import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { sha256 } from "./crypto";
 import { recordError } from "./errors";
+import { joinWaitlist, markStarted, mayStart } from "./access";
 import { ownerAlert } from "./alerts";
 import { exactly } from "./like";
 import { isStaff } from "./staff";
@@ -102,8 +103,9 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
     return { ws: await store.workspace(invite.workspace_id), role: invite.role };
   }
 
-  const id = firstWorkspaceId(userId);
   const staff = isStaff(email); // Nightshift's own people: Team plan, no trial, no billing
+  if (!staff && !(await mayStart(email))) await joinWaitlist(email); // free trials are invite-only for now
+  const id = firstWorkspaceId(userId);
   const { data: ws, error } = await db.from("workspaces").insert({ id, billing_email: email, ...(staff ? { plan: "team", name: "Nightshift staff" } : {}) }).select().single();
   if (error?.code === "23505") {
     // another request is setting this same workspace up right now: wait for it, then use it
@@ -119,6 +121,7 @@ export async function ensureWorkspace(userId: string, email: string, wanted?: st
   await db.from("profiles").upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: true });
   for (const b of defaultBots(ws)) await store.hireBot(ws.id, b);
   await store.room(ws.id);
+  if (!staff) await markStarted(email);
   if (!staff) await ownerAlert({ kind: "signup", heading: email, lead: "Someone new signed up. Their 14-day Studio trial has started.", rows: [["Email", email], ["Trial ends", new Date(ws.trial_ends_at).toLocaleDateString("en-US", { month: "long", day: "numeric" })]] });
   return { ws: await store.workspace(ws.id), role: "owner" };
 }
@@ -160,7 +163,7 @@ export function route<C = unknown>(fn: (req: Request, me: Caller, ctx: C) => Pro
       unstable_rethrow(e); // Next.js uses throws internally; those aren't ours to answer
       const status = e instanceof HttpError ? e.status : (e as { status?: number }).status ?? 500;
       if (status >= 500) await recordError(new URL(req.url).pathname, e);
-      return Response.json({ error: (e as Error).message }, { status });
+      return Response.json({ error: (e as Error).message, code: (e as { code?: string }).code }, { status });
     }
   };
 }
