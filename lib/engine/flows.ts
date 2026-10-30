@@ -154,7 +154,7 @@ export async function executeAction(store: Store, ws: Workspace, a: Action) {
     if (refused) throw new Error(refused);
     const result = await tool.run(ctx, a.payload);
     await store.updateAction(a.id, { status: "done", result: result ?? { ok: true } });
-    const line = `${a.risk === "money" ? "Done" : "Sent"}: ${a.title} · ${time}`;
+    const line = `${a.tool === "create_event" ? "In your calendar" : a.risk === "money" ? "Done" : "Sent"}: ${a.title} · ${time}`;
     if (a.thread_id && a.thread_id !== room.id) await store.addMessage({ workspace_id: ws.id, thread_id: a.thread_id, role: "system", kind: "event", content: line, data: { action_id: a.id } });
     await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "bot", kind: "event", bot_id: bot.id, content: line, data: { action_id: a.id, result } });
     await settleStatus(store, ws, bot);

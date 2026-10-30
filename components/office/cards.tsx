@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, clock, money } from "@/lib/client";
 import { Hop, useApp, useApprove, type DeskInfo, useRename } from "../AppShell";
 import { Head } from "../pixel";
@@ -202,7 +202,15 @@ export function DraftCard({ a, onChanged, collapsed }: { a: Action; onChanged: (
   const label = email ? "Draft email" : a.risk === "money" ? "Needs your approval" : "Draft";
   const head = { fontSize: 12, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase" as const, color: "#8a4f14" };
   const btn = { fontSize: 13.5 };
-  const status = a.status === "done" ? "Sent" : a.status === "sending" ? "Sending…" : a.status === "rejected" ? "Discarded" : a.status === "revising" ? "Being redrafted" : a.status;
+  const status = a.status === "done" ? (a.tool === "create_event" ? "In your calendar" : a.risk === "money" ? "Done" : "Sent") : a.status === "sending" ? "Sending…" : a.status === "executing" ? "Sending…" : a.status === "failed" ? "Didn't go through" : a.status === "rejected" ? "Discarded" : a.status === "revising" ? "Being redrafted" : a.status;
+  // after approving, look again once the undo window has passed, so "Sending…" turns into what happened
+  const sendAfter = (a as Action & { send_after?: string | null }).send_after;
+  useEffect(() => {
+    if (a.status !== "sending" && a.status !== "executing") return;
+    const wait = Math.max(2000, (sendAfter ? new Date(sendAfter).getTime() - Date.now() : 8000) + 2500);
+    const t = setTimeout(onChanged, wait);
+    return () => clearTimeout(t);
+  }, [a.status, sendAfter, onChanged]);
   if (collapsed && !done) {
     return (
       <div style={{ background: "#fffbf4", border: "1px solid #e1d5c5", borderRadius: 14, display: "flex", alignItems: "center", gap: 14, padding: "12px 16px" }}>

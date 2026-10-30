@@ -164,3 +164,21 @@ describe("connections", () => {
     expect(conn.status).toBe("ok");
   });
 });
+
+describe("sheets", () => {
+  it("read_sheet reads the connected sheet live, whatever its columns, and says when it's empty", async () => {
+    const { toolByName } = await import("../lib/tools");
+    const { store, ws, db } = memStore({ conns: [
+      { provider: "google", kinds: ["email", "calendar"], secret: { access_token: "t", refresh_token: "r", expires_at: Date.now() + 3_600_000 } },
+      { provider: "sheets", kinds: ["crm"], account: "Sheet 1abc", secret: { sheet_id: "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789" } },
+    ] });
+    const urls: string[] = [];
+    let values: string[][] = [["Client", "Phone", "Next visit"], ["Maple Co.", "555-0101", "Nov 12"]];
+    vi.stubGlobal("fetch", async (url: string) => { urls.push(url); return new Response(JSON.stringify({ values }), { status: 200 }); });
+    const ctx = { store, ws, bot: db.bots[0], run: null, conns: db.conns, usage: { searches: 0 }, emit: () => {} } as never;
+    expect(await toolByName("read_sheet")!.run(ctx, {})).toEqual({ header: ["Client", "Phone", "Next visit"], rows: 1, data: [["Maple Co.", "555-0101", "Nov 12"]] });
+    expect(urls[0]).toContain("/spreadsheets/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/values/");
+    values = [];
+    expect(await toolByName("read_sheet")!.run(ctx, {})).toMatchObject({ rows: 0, note: expect.stringMatching(/empty/) });
+  });
+});

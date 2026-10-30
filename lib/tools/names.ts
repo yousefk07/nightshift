@@ -29,6 +29,7 @@ export const TOOL_NAMES = {
   create_event: "message · add an event and invite people",
   // contacts and CRM
   find_contacts: "quiet · search contacts (built-in, HubSpot, or the lead sheet)",
+  read_sheet: "quiet · read a Google Sheet (the connected one, or a link the owner gives) as rows",
   save_contact: "quiet · add or update a contact (stage, tags, notes)",
   list_stale_leads: "quiet · leads with no touch in N days",
   log_touch: "quiet · record that a contact was reached (counts toward the weekly cap)",

@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { botDef } from "../bots";
 import { accountingFor } from "../connectors/accounting";
-import { hubspotPush } from "../connectors/crm";
+import { hubspotPush, sheetId } from "../connectors/crm";
+import { api } from "../connectors/http";
+import { accessToken } from "../connectors/oauth";
 import { calendarFor, freeSlots, mailFor } from "../connectors/mail";
 import { readPage, webSearch } from "../connectors/search";
 import { listOrders, lowStock } from "../connectors/shopify";
@@ -322,6 +324,28 @@ const findContacts = defineTool<{ query?: string; stage?: string }>({
   run: (ctx, { query, stage }) => ctx.store.contacts(ctx.ws.id, { query, stage, limit: 30 }),
 });
 
+// The sheet itself, live: any columns, any tab. The connected lead sheet by default, or a link the owner pasted.
+const readSheet = defineTool<{ url?: string; tab?: string; max_rows?: number }>({
+  name: "read_sheet",
+  description: "Read a Google Sheet as rows: the one connected as the lead list, or one the owner links to. Returns the header row and the rows under it.",
+  parameters: obj({ url: str("A Google Sheets link the owner gave (default: the connected lead sheet)"), tab: str("Which tab (default: the first)"), max_rows: num("How many rows (default 200, at most 500)") }),
+  risk: "quiet",
+  async run(ctx, a) {
+    const google = ctx.conns.find((c) => c.provider === "google" && c.status === "ok");
+    if (!google) throw new Error("Google isn't connected. Connect it in Settings → Connections to read sheets.");
+    const linked = ctx.conns.find((c) => c.provider === "sheets");
+    const id = a.url ? sheetId(a.url) : (linked?.secret.sheet_id as string | undefined);
+    if (!id) throw new Error(a.url ? "That isn't a Google Sheets link." : "No sheet is connected. Ask the owner for its link.");
+    const limit = Math.min(Math.max(Math.floor(a.max_rows ?? 200), 1), 500);
+    const range = `${a.tab ? `'${a.tab.replace(/'/g, "''")}'!` : ""}A1:Z${limit + 1}`;
+    const token = await accessToken(ctx.store, google);
+    const r = await api<{ values?: string[][] }>(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${encodeURIComponent(range)}`, { token });
+    const values = r.values ?? [];
+    if (!values.length) return { rows: 0, note: "The sheet is empty (no rows on that tab)." };
+    return { header: values[0], rows: values.length - 1, data: values.slice(1) };
+  },
+});
+
 const saveContact = defineTool<{ email: string; name?: string; company?: string; phone?: string; stage?: string; tags?: string[]; note?: string }>({
   name: "save_contact",
   description: "Add or update a contact (by email): stage, tags, a note. Synced back to HubSpot when connected.",
@@ -540,7 +564,7 @@ export const ALL_TOOLS: Tool[] = [
   postToRoom, handOff, flagItem, notifyOwner, reviewActivity, saveBrief, saveDocument, remember, recall, placeHold, listHolds,
   searchEmail, readEmail, labelEmail, draftReply, sendEmail,
   listEvents, findFreeSlots, createEvent,
-  findContacts, saveContact, staleLeads, logTouch,
+  findContacts, readSheet, saveContact, staleLeads, logTouch,
   listInvoices, getInvoice, listPayments, remindInvoice, createInvoice, createCreditNote,
   listOrdersTool, unpaidOrders, lowStockTool,
   searchWeb, readWebPage, checkPage,

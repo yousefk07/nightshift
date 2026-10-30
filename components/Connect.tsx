@@ -106,8 +106,8 @@ export function ConnectSheet({ kind, onClose, onDone }: { kind: Kind; onClose: (
         setDone(`Imported ${r.imported} contacts.`);
       } else {
         const body = provider === "stripe" ? { key: fields.key } : provider === "shopify" ? { shop: fields.shop, token: fields.token } : provider === "hubspot" ? { token: fields.token } : { url: fields.url };
-        const r = await api<{ contacts?: number }>(`/api/connect/${provider}`, { json: body });
-        setDone(r.contacts != null ? `Connected. ${r.contacts} contacts synced.` : "Connected.");
+        const r = await api<{ contacts?: number; note?: string }>(`/api/connect/${provider}`, { json: body });
+        setDone(r.note ?? (r.contacts != null ? `Connected. ${r.contacts} contacts synced.` : "Connected."));
       }
       setTimeout(onDone, 900);
     } catch (e) {

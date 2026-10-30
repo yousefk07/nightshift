@@ -81,7 +81,12 @@ export async function syncCrm(store: Store) {
         }
         await store.markConnection(c.id, { status: "ok", synced: true });
       } catch (e) {
-        await store.markConnection(c.id, { status: "error", error: (e as Error).message });
+        // a timeout or a hiccup on their side: stay connected and try again next time. Only real access problems
+        // (signed out, no permission, the sheet or account is gone) mark the connection as needing attention.
+        const msg = (e as Error).message;
+        const lost = /\b(401|403|404)\b|reconnected|invalid_grant/i.test(msg);
+        if (lost) await store.markConnection(c.id, { status: "error", error: msg });
+        else console.error(`crm sync ${c.provider}: ${msg}`);
       }
     }
   }

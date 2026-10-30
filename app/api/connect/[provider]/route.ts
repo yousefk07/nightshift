@@ -72,7 +72,7 @@ export const POST = route<Ctx>(async (req, me, { params }) => {
     const conn = probe({ workspace_id: me.ws.id, provider: "sheets", kinds: ["crm"], account: `Sheet ${sheetId(url)!.slice(0, 8)}`, secret: { sheet_id: sheetId(url), url }, status: "ok" });
     const n = await sheetsPull(store, conn as Connection, google).catch(fail("Google Sheets"));
     await store.saveConnection(me.ws.id, "sheets", conn.kinds, conn.account, conn.secret);
-    return Response.json({ connected: "sheets", contacts: n });
+    return Response.json({ connected: "sheets", contacts: n, note: n ? undefined : "Connected, but the sheet has no rows with an Email column yet. Add a header row (Name, Email, Company, Stage, Last contacted) and your contacts; they come in within the hour, and the bots can read the sheet itself straight away." });
   }
   throw new HttpError(404, "Unknown provider.");
 });
