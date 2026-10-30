@@ -31,3 +31,11 @@ export const teamLabel = (industry: string | null | undefined) => castOf(industr
 export type { BotTemplate, Industry } from "./template";
 export { INDUSTRIES, CATEGORIES, taskFor } from "./template";
 export { chipsFor, castOf, CASTS } from "./casts";
+
+// Health practices handle patients' health information, which needs a model provider that signs health-privacy
+// agreements (PHIPA in Ontario, HIPAA in the US). DeepSeek doesn't, so these are held back from sign-up until
+// HEALTH_INDUSTRIES=on. Vets stay open: animal records aren't health information under those laws.
+export const HEALTH_INDUSTRIES: Industry[] = ["dental_general", "dental_ortho", "dental_pediatric", "dental_cosmetic", "medical_family", "medical_specialist", "medspa", "dermatology", "physio", "chiro", "massage", "mental_health", "optometry", "pharmacy"];
+export const healthHeld = () => process.env.HEALTH_INDUSTRIES !== "on";
+export const industryOpen = (i: string) => i in INDUSTRIES && !(healthHeld() && HEALTH_INDUSTRIES.includes(i as Industry));
+export const openIndustries = () => Object.fromEntries(Object.entries(INDUSTRIES).filter(([k]) => industryOpen(k))) as Partial<typeof INDUSTRIES>;

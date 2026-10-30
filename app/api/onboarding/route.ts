@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { body, HttpError, requireOwner, route } from "@/lib/auth";
-import { INDUSTRIES, isTemplate } from "@/lib/bots";
+import { INDUSTRIES, isTemplate, industryOpen } from "@/lib/bots";
 import { hireRow, PAIN_POINTS, renameToCast } from "@/lib/engine/flows";
 import { inviteMember } from "@/lib/team";
 import { limits } from "@/lib/plans";
@@ -15,7 +15,7 @@ const Step = z.object({
   step: z.number().int().min(1).max(5).optional(),
   name: z.string().min(1).max(80).optional(),
   about: z.string().max(500).optional(),
-  industry: z.string().refine((i) => i in INDUSTRIES, "Unknown industry").optional(),
+  industry: z.string().refine((i) => i in INDUSTRIES, "Unknown industry").refine(industryOpen, "Health and medical practices aren't open yet: they need a model that meets health-privacy rules.").optional(),
   team_size: z.string().max(30).optional(),
   pain_points: z.array(z.string().refine((p) => p in PAIN_POINTS)).optional(),
   timezone: tz.optional(),

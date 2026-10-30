@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { body, requireOwner, route } from "@/lib/auth";
-import { INDUSTRIES } from "@/lib/bots";
+import { INDUSTRIES, industryOpen } from "@/lib/bots";
 import { renameToCast } from "@/lib/engine/flows";
 import { admin, supabaseStore } from "@/lib/store-supabase";
 
@@ -8,7 +8,7 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const Patch = z.object({
   name: z.string().min(1).max(80).optional(),
   about: z.string().max(2000).optional(),
-  industry: z.string().refine((i) => i in INDUSTRIES, "Unknown industry").optional(),
+  industry: z.string().refine((i) => i in INDUSTRIES, "Unknown industry").refine(industryOpen, "Health and medical practices aren't open yet: they need a model that meets health-privacy rules.").optional(),
   timezone: z.string().refine((tz) => {
     try { new Intl.DateTimeFormat("en", { timeZone: tz }); return true; } catch { return false; }
   }, "Unknown time zone").optional(),

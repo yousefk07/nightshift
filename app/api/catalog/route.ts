@@ -1,5 +1,5 @@
 import { route } from "@/lib/auth";
-import { botDef, CATEGORIES, forIndustry, INDUSTRIES, TEMPLATES, type Industry } from "@/lib/bots";
+import { botDef, CATEGORIES, forIndustry, healthHeld, INDUSTRIES, openIndustries, TEMPLATES, type Industry } from "@/lib/bots";
 import { CORE_IDS } from "@/lib/bots/casts";
 import { suggestedBots } from "@/lib/engine/flows";
 import { supabaseStore } from "@/lib/store-supabase";
@@ -16,7 +16,8 @@ export const GET = route(async (req, me) => {
   const list = p.get("all") === "1" ? TEMPLATES.map((t) => botDef(t.id, industry)) : forIndustry(industry in INDUSTRIES ? industry : "general");
   const suggested = new Set(suggestedBots(industry, me.ws.pain_points).map((t) => t.id));
   return Response.json({
-    industries: INDUSTRIES,
+    industries: openIndustries(), // health practices only once HEALTH_INDUSTRIES=on
+    health_held: healthHeld(),
     categories: CATEGORIES,
     industry,
     bots: list.map((t) => ({

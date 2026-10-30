@@ -28,6 +28,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(1);
   const [biz, setBiz] = useState({ name: "", about: "", industry: "general", team_size: "2–5 people", timezone: "America/Toronto", pain_points: [] as string[] });
   const [industries, setIndustries] = useState<Record<string, string>>({});
+  const [healthHeld, setHealthHeld] = useState(false);
   const [catalog, setCatalog] = useState<CatalogBot[]>([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [browse, setBrowse] = useState(false);
@@ -54,8 +55,9 @@ export default function Onboarding() {
       const w = m.workspace;
       setBiz({ name: w.name === "My business" ? "" : w.name, about: w.about, industry: w.industry, team_size: w.team_size ?? "2–5 people", timezone: w.timezone, pain_points: w.pain_points });
       setStep(Math.min(Math.max(w.onboarding_step, 1), 4));
-      const c = await api<{ industries: Record<string, string> }>("/api/catalog?industry=general");
+      const c = await api<{ industries: Record<string, string>; health_held?: boolean }>("/api/catalog?industry=general");
       setIndustries(c.industries);
+      setHealthHeld(!!c.health_held);
       // back from an OAuth connect: stay on step 2
       if (new URLSearchParams(location.search).get("connected")) setStep(2);
     });
@@ -172,7 +174,7 @@ export default function Onboarding() {
                 <Select value={biz.industry} onChange={(e) => setBiz({ ...biz, industry: e.target.value })} style={{ height: 48, borderRadius: 10, fontSize: 15.5 }}>
                   {Object.entries(industries).sort((a, b) => (a[0] === "general" ? -1 : b[0] === "general" ? 1 : a[1].localeCompare(b[1]))).map(([k, v]) => <option key={k} value={k}>{k === "general" ? "Something else" : v}</option>)}
                 </Select>
-                <span style={{ fontWeight: 400, fontSize: 13, color: "#716459" }}>We&apos;ll suggest bots that know your line of work.</span>
+                <span style={{ fontWeight: 400, fontSize: 13, color: "#716459" }}>We&apos;ll suggest bots that know your line of work.{healthHeld && " Health and medical practices aren't open yet: they need extra privacy protections we're still adding."}</span>
               </label>
               <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 16 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, fontWeight: 600 }}>Team size

@@ -40,7 +40,7 @@ export default function Home() {
           <div className="pixel" style={{ fontSize: 15, color: "#f0c27a", letterSpacing: ".08em" }}>YOUR TEAM WORKS NIGHTS. YOU DON&apos;T HAVE TO.</div>
           <h1 style={{ margin: 0, fontSize: "clamp(40px,7vw,68px)", lineHeight: 1.02, letterSpacing: "-.02em", maxWidth: 900, textWrap: "balance" }}>A night shift for your small business</h1>
           <p style={{ margin: 0, fontSize: 20, lineHeight: 1.5, color: "#d6c8bb", maxWidth: 660, textWrap: "pretty" }}>
-            AI teammates read your inbox, chase invoices, follow up on leads and do your research, then leave a brief on your desk by morning. There are specialists for over a hundred kinds of business, from dental clinics to roofers.
+            AI teammates read your inbox, chase invoices, follow up on leads and do your research, then leave a brief on your desk by morning. There are specialists for over 80 kinds of business, from roofers to restaurants.
           </p>
           <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
             <Link href="/signin?new=1" style={{ fontSize: 16, fontWeight: 600, padding: "14px 22px", borderRadius: 12, background: "#f0c27a", color: "#221a24", textDecoration: "none" }}>Start your 14-day trial</Link>
@@ -75,7 +75,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p style={{ margin: 0, fontSize: 16, color: "#5d5148" }}>Plus specialists for your line of work: a recall bot for dental clinics, permit renewals for immigration lawyers, tune-up season for HVAC, cake orders for bakeries, and hundreds more.</p>
+        <p style={{ margin: 0, fontSize: 16, color: "#5d5148" }}>Plus specialists for your line of work: rebooking for salons, permit renewals for immigration lawyers, tune-up season for HVAC, cake orders for bakeries, and hundreds more.</p>
       </section>
 
       <section id="how" style={{ padding: "64px clamp(16px,4vw,56px)", display: "flex", flexDirection: "column", gap: 32 }}>
