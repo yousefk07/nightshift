@@ -19,6 +19,19 @@ export interface RunResult {
   costUsd: number;
 }
 
+// What the business has connected right now, so a bot never guesses ("maybe the sync is broken"): it knows.
+const KIND_LABEL: Record<string, string> = { email: "email", calendar: "calendar", accounting: "accounting", crm: "lead list / CRM", store: "online store" };
+function connectedLine(conns: { provider: string; kinds: string[]; account: string; status: string }[]) {
+  const ok = conns.filter((c) => c.status === "ok"), broken = conns.filter((c) => c.status !== "ok");
+  const have = new Set(ok.flatMap((c) => c.kinds));
+  const missing = Object.keys(KIND_LABEL).filter((k) => !have.has(k)).map((k) => KIND_LABEL[k]);
+  return [
+    ok.length ? `Connected right now: ${ok.map((c) => `${c.provider} (${c.kinds.map((k) => KIND_LABEL[k] ?? k).join(", ")}: ${c.account})`).join("; ")}.` : "Nothing is connected yet.",
+    broken.length ? `Needs reconnecting: ${broken.map((c) => `${c.provider} (${c.account})`).join(", ")}.` : "",
+    missing.length ? `Not connected: ${missing.join(", ")}.` : "",
+  ].filter(Boolean).join(" ");
+}
+
 // Who else is on the team, so the bot knows whom to hand work to.
 function teamLine(bot: Bot, team: Bot[], industry: string) {
   const others = team.filter((b) => b.id !== bot.id).map((b) => {
@@ -34,7 +47,7 @@ function teamLine(bot: Bot, team: Bot[], industry: string) {
 
 async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[], team: Bot[]) {
   const def = botDef(bot.kind, ws.industry);
-  const [memories, members] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id, { emails: false })]);
+  const [memories, members, conns] = await Promise.all([store.memories(ws.id, { limit: 25 }), store.members(ws.id, { emails: false }), store.connectionList(ws.id)]);
   const owner = members.find((m) => m.role === "owner");
   const messages = tools.filter((t) => t.risk === "message").map((t) => t.name);
   const money = tools.filter((t) => t.risk === "money").map((t) => t.name);
@@ -51,11 +64,13 @@ async function systemPrompt(store: Store, ws: Workspace, bot: Bot, tools: Tool[]
     money.length ? `Money tools (${money.join(", ")}) always wait for the owner's approval, whatever else you're allowed to do.` : "",
     "If a tool says someone is on hold, on the do-not-contact list or was already contacted this week, respect it: don't try another way to reach them.",
     teamLine(bot, team, ws.industry),
+    connectedLine(conns),
     memories.length ? `What the team knows (shared memory; add lasting facts with remember):\n${memories.map((m) => `- ${m.subject ? m.subject + ": " : ""}${m.fact}`).join("\n")}` : "",
     "In a chat you're talking with the owner: call them \"you\", never \"the owner\", \"he\" or \"she\". Talk like a friendly, capable colleague, not a report.",
     "Match what they said. If they're just saying hi, thanks or chatting, reply like a person in one short sentence (greet them back, and ask what they need or mention the one thing worth knowing, if there is one) and don't use any tools. Only do work when they ask for something.",
     "Do what the owner asks. Anything that goes out waits for their approval, so don't refuse, don't ask for proof and don't make them ask twice: make your best attempt, and if something is missing, use a sensible placeholder and mention it in one short line. Ask a question only when you can't do anything useful without the answer.",
     "Keep it short. In a chat, answer in one to three sentences, with a short list only when you're naming several things. In scheduled runs and room posts, open with one sentence, then at most 5 short '- ' bullets. No filler (\"nothing else touched\", \"standing offer\"), no advice nobody asked for, no restating what they just told you. Use **bold** only for a label at the start of a bullet. No tables, no headings, no sign-off.",
+    "Never mention your tools or how you work inside (no tool names like find_contacts, no \"synced copy\", no \"my brief\"): say what you did and found in plain words. If something isn't connected, say so plainly and where to connect it (Settings → Connections), instead of guessing why.",
     "Never invent facts, emails, amounts or sources; if you don't know, say so. Never give medical, legal or financial advice to customers.",
     Object.keys(bot.settings ?? {}).length ? `Your settings from the owner: ${JSON.stringify(bot.settings)}` : "",
   ].filter(Boolean).join("\n\n");

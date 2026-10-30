@@ -393,3 +393,18 @@ describe("trial cap", () => {
     }
   });
 });
+
+describe("what a bot is told", () => {
+  it("knows exactly what's connected, never names its tools, talks like a person, and contact bots can read the sheet", async () => {
+    const { store, ws } = memStore({ conns: [google] });
+    const ds = fakeDeepSeek([{ text: "Hey! What can I do for you?" }]);
+    await chatWithBot(store, ws, "inbox", "hi");
+    const system = String((ds.requests[0] as { messages: { content: string }[] }).messages[0].content);
+    expect(system).toMatch(/Connected right now: google \(email, calendar/);
+    expect(system).toMatch(/Not connected: .*lead list \/ CRM/);
+    expect(system).toMatch(/Never mention your tools/);
+    expect(system).toMatch(/just saying hi/);
+    const { TEMPLATES } = await import("../lib/bots");
+    expect(TEMPLATES.filter((t) => t.tools.includes("find_contacts")).every((t) => t.tools.includes("read_sheet"))).toBe(true);
+  });
+});

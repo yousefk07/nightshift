@@ -4,7 +4,8 @@ import { CORE } from "./core";
 import { INDUSTRIES, type BotTemplate, type Industry } from "./template";
 
 // Every bot a business can hire: the core team plus the specialised catalog.
-export const TEMPLATES: BotTemplate[] = [...CORE, ...CATALOG];
+// Every bot that works with contacts can also read the lead sheet itself (read_sheet), not only its synced copy.
+export const TEMPLATES: BotTemplate[] = [...CORE, ...CATALOG].map((t) => (t.tools.includes("find_contacts") && !t.tools.includes("read_sheet") ? { ...t, tools: [...t.tools, "read_sheet"] } : t));
 const BY_ID = new Map(TEMPLATES.map((t) => [t.id, t]));
 
 export const isTemplate = (id: string) => BY_ID.has(id);
