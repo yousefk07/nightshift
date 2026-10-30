@@ -28,7 +28,7 @@ const numbers = <T extends Record<string, any>>(row: T, keys: string[]) => {
   for (const k of keys) if (row?.[k] != null) (row as any)[k] = Number(row[k]);
   return row;
 };
-const ws_ = (w: Workspace) => numbers(w, ["daily_budget_usd"]);
+export const ws_ = (w: Workspace) => numbers(w, ["daily_budget_usd"]);
 const run_ = (r: Run) => numbers(r, ["cost_usd"]);
 const act_ = (a: Action) => numbers(a, ["amount_cents"]);
 const now = () => new Date().toISOString();

@@ -72,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const me = useApi<Me>("/api/me");
-  const office = useApi<Office>(me.data ? "/api/office" : null, { poll: 30_000 });
+  const office = useApi<Office>("/api/office", { poll: 30_000 }); // alongside /api/me, not after it
   const [listeners] = useState(() => new Set<(e: { type: string; data: any }) => void>());
   const [toasts, setToasts] = useState<{ id: number; text: string; undo?: () => Promise<void>; until: number }[]>([]);
 

@@ -8,7 +8,7 @@ import { ownerAlert } from "./alerts";
 import { exactly } from "./like";
 import { isStaff } from "./staff";
 import { defaultBots } from "./engine/flows";
-import { admin, supabaseStore } from "./store-supabase";
+import { admin, supabaseStore, ws_ } from "./store-supabase";
 import type { Role, Workspace } from "./types";
 
 // Who is calling: the web app's Supabase session cookie, or a CLI/API token (Authorization: Bearer ns_...).
@@ -48,12 +48,13 @@ export async function sessionClient() {
 // still opens, so its owner can restore it).
 async function membership(userId: string, wsId?: string | null) {
   const db = admin();
-  let q = db.from("members").select("workspace_id, role, workspaces(deleted_at)").eq("user_id", userId).order("created_at").limit(20);
+  // the workspace comes back in the same trip, so a request doesn't wait for a second lookup
+  let q = db.from("members").select("workspace_id, role, workspaces(*)").eq("user_id", userId).order("created_at").limit(20);
   if (wsId) q = q.eq("workspace_id", wsId);
   const { data } = await q;
-  const rows = (data ?? []) as unknown as { workspace_id: string; role: Role; workspaces: { deleted_at: string | null } | null }[];
-  const pick = rows.find((r) => !r.workspaces?.deleted_at) ?? rows[0];
-  return pick ? { workspace_id: pick.workspace_id, role: pick.role } : null;
+  const rows = (data ?? []) as unknown as { workspace_id: string; role: Role; workspaces: Workspace | null }[];
+  const pick = rows.find((r) => r.workspaces && !r.workspaces.deleted_at) ?? rows[0];
+  return pick ? { workspace_id: pick.workspace_id, role: pick.role, ws: pick.workspaces ? ws_(pick.workspaces) : null } : null;
 }
 
 // A new user's first workspace gets an id made from their user id, so two first requests racing each other
@@ -90,7 +91,7 @@ export async function caller(req: Request): Promise<Caller> {
 export async function ensureWorkspace(userId: string, email: string, wanted?: string | null): Promise<{ ws: Workspace; role: Role }> {
   const db = admin(), store = supabaseStore(db);
   const m = (await membership(userId, wanted)) ?? (wanted ? await membership(userId) : null); // a stale pick falls back
-  if (m) return { ws: await store.workspace(m.workspace_id), role: m.role };
+  if (m) return { ws: m.ws ?? (await store.workspace(m.workspace_id)), role: m.role };
 
   const { data: invite } = await db.from("invites").select("id, workspace_id, role").ilike("email", exactly(email)).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (invite) {
