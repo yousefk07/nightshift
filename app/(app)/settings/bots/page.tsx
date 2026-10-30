@@ -151,6 +151,8 @@ function Hire({ catalog, onClose, onHired, max, count }: { catalog: Catalog; onC
             <div style={{ fontSize: 13, color: "#776a5e" }}>{count} of {max} on your plan.</div>
           </div>
           <Select value={industry} onChange={(e) => setIndustry(e.target.value)} style={{ width: 240 }}>
+            {/* the workspace's own industry is always listed, even one that's held back for new sign-ups */}
+            {!(catalog.industry in catalog.industries) && <option value={catalog.industry}>{catalog.bots.find((b) => b.built_for)?.built_for ?? catalog.industry}</option>}
             {Object.entries(catalog.industries).sort((a, b) => a[1].localeCompare(b[1])).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </Select>
           <Input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 180 }} />
@@ -161,15 +163,30 @@ function Hire({ catalog, onClose, onHired, max, count }: { catalog: Catalog; onC
           {groups.map((g) => (
             <div key={g.k} style={{ marginTop: 14 }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase", color: "#716459", marginBottom: 8 }}>{g.label}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
                 {g.bots.map((b) => (
-                  <div key={b.id} style={{ display: "flex", gap: 10, padding: 12, borderRadius: 12, background: "#fffbf4", border: "1px solid #e4d9ca" }}>
-                    <div style={{ width: 40, height: 40, flex: "none", borderRadius: 10, background: `oklch(0.92 0.045 ${b.hue})`, display: "grid", placeItems: "center" }}><Head bot={{ kind: b.id, hue: b.hue }} size={2.4} /></div>
-                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 700 }}>{b.name} <span style={{ fontWeight: 400, color: "#776a5e" }}>· {b.role}</span>{b.suggested && !b.hired && <span style={{ marginLeft: 6, fontSize: 11, color: "#8a4f14" }}>suggested</span>}{b.built_for && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: "#1f6a64", background: "#d6ecea", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap" }}>Built for {b.built_for}</span>}</div>
-                      <div style={{ fontSize: 13, color: "#5d5148", lineHeight: 1.4 }}>{b.title}</div>
-                      {b.missing.length > 0 && <div style={{ fontSize: 12, color: "#8a4f14" }}>Needs {b.missing.join(", ")}</div>}
-                      <div>{b.hired ? <span style={{ fontSize: 12.5, color: "#2f6b3a", fontWeight: 600 }}>On your team</span> : <Button size="sm" disabled={count >= max} onClick={() => hire(b)}>Hire {b.name}</Button>}</div>
+                  <div key={b.id} style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, borderRadius: 14, background: "#fffbf4", border: `1px solid ${b.suggested && !b.hired ? "#e9c99a" : "#e4d9ca"}` }}>
+                    {/* who: face, name, and the job on its own line so nothing wraps mid-phrase */}
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={{ width: 44, height: 44, flex: "none", borderRadius: 12, background: `oklch(0.92 0.045 ${b.hue})`, display: "grid", placeItems: "center" }}><Head bot={{ kind: b.id, hue: b.hue }} size={2.6} /></div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.2 }}>{b.name}</div>
+                        <div style={{ fontSize: 13, color: "#776a5e", lineHeight: 1.3 }}>{b.role}</div>
+                      </div>
+                      {b.suggested && !b.hired && <span style={{ marginLeft: "auto", alignSelf: "flex-start", fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "#8a4f14", background: "#f7e3c4", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap" }}>Suggested</span>}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#5d5148", lineHeight: 1.45 }}>{b.title}</div>
+                    {/* bottom: what it needs, then the button, lined up across the row */}
+                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+                      {(b.built_for || b.missing.length > 0) && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                          {b.built_for && <span style={{ fontSize: 11, fontWeight: 600, color: "#1f6a64", background: "#e0f0ee", borderRadius: 999, padding: "2px 8px" }}>{b.built_for}</span>}
+                          {b.missing.map((m) => <span key={m} title={`Connect ${m} in Settings → Connections`} style={{ fontSize: 11, color: "#8a4f14", background: "#f6ece0", borderRadius: 999, padding: "2px 8px" }}>needs {m}</span>)}
+                        </div>
+                      )}
+                      {b.hired
+                        ? <div style={{ fontSize: 13, color: "#2f6b3a", fontWeight: 600, padding: "6px 0" }}>✓ On your team</div>
+                        : <Button size="sm" disabled={count >= max} onClick={() => hire(b)} style={{ width: "100%" }}>Hire {b.name}</Button>}
                     </div>
                   </div>
                 ))}

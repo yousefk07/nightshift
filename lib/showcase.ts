@@ -25,6 +25,8 @@ export function showcaseAnswer(path: string, method: string): unknown {
   if (p === "/api/runs") return { runs: [{ id: "r1" }] };
   if (p === "/api/connections") return data.connections;
   if (p === "/api/billing") return data.billing;
+  if (p === "/api/catalog") return data.catalog;
+  if (p === "/api/do-not-contact") return { entries: [], guardrails: { pause_on_dispute: true, weekly_cap: true } };
   if (p === "/api/threads") return (data.threads as Record<string, unknown>)[q.get("bot") ?? ""] ?? { threads: [] };
   if (p.startsWith("/api/threads/")) return q.get("after") ? { ...data.thread, messages: [] } : data.thread;
   if (p.startsWith("/api/bots/")) return (data.bots as Record<string, unknown>)[decodeURIComponent(p.slice("/api/bots/".length))] ?? {};

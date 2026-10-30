@@ -2,9 +2,10 @@
 // view code on the in-memory store, so the local showcase mode (lib/showcase.ts) shows true-to-life screens.
 // Everything here is fictional. Run: npx tsx scripts/showcase.mts
 import fs from "node:fs";
-import { botDef } from "../lib/bots/index";
+import { botDef, CATEGORIES, forIndustry, INDUSTRIES, openIndustries, type Industry } from "../lib/bots/index";
+import { CORE_IDS } from "../lib/bots/casts";
 import { localDate } from "../lib/engine/schedule";
-import { deskView, hireRow, officeView, renameToCast } from "../lib/engine/flows";
+import { deskView, hireRow, officeView, renameToCast, suggestedBots } from "../lib/engine/flows";
 import { limits, planOf } from "../lib/plans";
 import { memStore } from "../test/memstore";
 
@@ -98,8 +99,21 @@ const billingData = {
   invoices: [{ date: new Date().toISOString(), description: "1 × Nightshift Studio (at $89.00 / month)", amount: 89, currency: "USD", status: "paid", pdf: null }],
   card: { brand: "visa", last4: "4242", exp: "12/30" },
 };
+// the Hire a bot catalog, shaped like /api/catalog
+const have = new Set(db.conns.flatMap((c) => c.kinds as string[]));
+const team = await store.bots(ws.id);
+const ind = ws.industry as Industry;
+const picks = new Set(suggestedBots(ind, ws.pain_points).map((t) => t.id));
+const catalog = {
+  industries: openIndustries(), health_held: false, categories: CATEGORIES, industry: ws.industry,
+  bots: forIndustry(ind).map((t) => ({
+    id: t.id, name: t.name, role: t.role, title: t.title, hue: t.hue, prop: t.prop, category: t.category, industries: t.industries,
+    schedule: t.schedule, needs: t.needs, missing: t.needs.filter((n) => !have.has(n)), hired: team.some((b) => b.kind === t.id), suggested: picks.has(t.id),
+    built_for: t.industries.includes(ind) || CORE_IDS.includes(t.id as never) ? INDUSTRIES[ind] : null,
+  })),
+};
 const threadData = { thread, messages: await store.messages(thread.id, { limit: 200 }), actions: db.actions.filter((a) => a.id === c1.id) };
 void c2; void c3;
 
-fs.writeFileSync(new URL("../lib/showcase-data.json", import.meta.url), JSON.stringify({ me, office, desk: deskData, room: roomData, bots: botData, connections, billing: billingData, threads: { [desk.kind]: { threads: [thread] } }, thread: threadData }, null, 1));
+fs.writeFileSync(new URL("../lib/showcase-data.json", import.meta.url), JSON.stringify({ me, office, desk: deskData, room: roomData, bots: botData, connections, billing: billingData, threads: { [desk.kind]: { threads: [thread] } }, thread: threadData, catalog }, null, 1));
 console.log(`showcase: ${office.desks.length} desks (${office.desks.map((d) => d.name).join(", ")}), ${deskData.queue.length} cards, ${msgs.length} room messages`);
