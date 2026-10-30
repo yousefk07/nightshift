@@ -57,7 +57,11 @@ const H = ({ children }: { children: ReactNode }) => <h2 style={{ fontSize: 15, 
 export default function AdminPage() {
   const o = useApi<Overview>("/api/admin", { poll: 60_000 });
   // approving emails them the "your trial is ready" link and lets them start a workspace
-  const decide = async (id: number, status: string) => { await api("/api/admin/interest", { method: "PATCH", json: { id, status } }); o.refresh(); };
+  const decide = async (id: number, status: string) => {
+    try { await api("/api/admin/interest", { method: "PATCH", json: { id, status } }); } catch (e) { alertError((e as Error).message); }
+    o.refresh();
+  };
+  const [decideError, alertError] = useState<string | null>(null);
   const [tab, setTab] = useState<"workspaces" | "users" | "failed" | "errors" | "interest">("workspaces");
   const [openErr, setOpenErr] = useState<number | null>(null);
   const [q, setQ] = useState("");
@@ -154,6 +158,7 @@ export default function AdminPage() {
             </Table>
           )}
 
+          {tab === "interest" && decideError && <div style={{ color: "var(--bad)", padding: "0 4px 10px" }}>{decideError}</div>}
           {tab === "interest" && (
             o.data!.interest.length === 0 ? <div style={{ color: "var(--muted)", padding: "16px 4px" }}>Nobody yet. Outreach links, the form at nightshiftai.ca/trial and anyone who signs in without an invite land here. Only people you approve can start a trial.</div> : (
             <Table head={["When", "Business", "Contact", "Kind", "From", "Status", ""]}>

@@ -46,6 +46,8 @@ export const POST = open(async (req) => {
     return Response.json({ ok: true, business: p.business, again: true });
   }
   const saved = await db.from("trial_interest").insert({ email: p.email, business: p.business, contact_name: p.contact_name ?? null, phone: f.phone ?? null, niche: p.niche ?? null, city: p.city ?? null, source, ip });
+  // a double click got here first: count it like any other repeat
+  if (saved.error?.code === "23505") return Response.json({ ok: true, business: p.business, again: true });
   // even if the table isn't there yet (migration 0005), the alert still goes out, so nobody is lost
   await ownerAlert({
     kind: "interest", heading: `${p.business || p.email} wants a free trial`,

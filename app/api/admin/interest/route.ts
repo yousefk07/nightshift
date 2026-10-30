@@ -12,8 +12,9 @@ export const PATCH = adminRoute(async (req) => {
   const { data: p } = await db.from("trial_interest").select("email, business, contact_name, status").eq("id", id).maybeSingle();
   if (!p) throw new HttpError(404, "No such person on the list.");
   if (p.status === "started") throw new HttpError(409, "They've already started their trial.");
+  // the email first: if it can't be sent they stay as they were, rather than "approved" with nothing in their inbox
+  if (status === "approved" && p.status !== "approved") await sendApproval(p);
   const { error } = await db.from("trial_interest").update({ status }).eq("id", id);
   if (error) throw new Error(error.message);
-  if (status === "approved" && p.status !== "approved") await sendApproval(p);
   return Response.json({ ok: true, status, emailed: status === "approved" && p.status !== "approved" });
 });

@@ -30,6 +30,8 @@ export async function joinWaitlist(email: string): Promise<never> {
   const { data } = await row(email);
   if (!data) {
     const saved = await admin().from("trial_interest").insert({ email: email.toLowerCase(), source: "signin" });
+    // the app's first screens load together, so two requests can get here at once: only the one that added them alerts
+    if (saved.error?.code === "23505") throw new WaitlistError();
     await ownerAlert({
       kind: "interest", heading: `${email} signed in and is waiting for a trial`,
       lead: "They signed in on nightshiftai.ca. Approve them on the admin page and they'll get an email to start.",
