@@ -5,10 +5,10 @@ import { layout, sendMail } from "./email";
 
 export const alertEmails = () => (process.env.OWNER_ALERT_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
 
-export type AlertKind = "signup" | "subscribed" | "plan_changed" | "canceling" | "resumed" | "ended" | "paid" | "payment_failed" | "errors";
+export type AlertKind = "signup" | "subscribed" | "plan_changed" | "canceling" | "resumed" | "ended" | "paid" | "payment_failed" | "errors" | "interest";
 const EYEBROW: Record<AlertKind, string> = {
   signup: "New sign-up", subscribed: "New customer", plan_changed: "Plan changed", canceling: "Cancellation",
-  resumed: "Cancellation taken back", ended: "Subscription ended", paid: "Payment received", payment_failed: "Payment failed", errors: "Errors",
+  resumed: "Cancellation taken back", ended: "Subscription ended", paid: "Payment received", payment_failed: "Payment failed", errors: "Errors", interest: "Trial interest",
 };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);

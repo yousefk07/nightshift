@@ -17,7 +17,8 @@ type W = {
 type U = { id: string; email: string; provider: string; created_at: string; last_sign_in_at: string | null; workspaces: { id: string; role: string; name: string }[] };
 type Run = { id: string; workspace_id: string; workspace: string; status: string; trigger: string; model: string | null; cost_usd: number; error: string | null; created_at: string };
 type Err = { id: number; at: string; source: string; message: string; workspace_id: string | null; workspace: string | null; detail: { stack?: string } };
-type Overview = { totals: Record<string, number>; by_plan: Record<string, number>; by_provider: Record<string, number>; workspaces: W[]; users: U[]; failed_runs: Run[]; errors: Err[] };
+type Interest = { id: number; email: string; business: string; contact_name: string | null; phone: string | null; niche: string | null; city: string | null; source: string; clicks: number; status: string; created_at: string };
+type Overview = { totals: Record<string, number>; by_plan: Record<string, number>; by_provider: Record<string, number>; workspaces: W[]; users: U[]; failed_runs: Run[]; errors: Err[]; interest: Interest[] };
 
 const usd = (n: number, d = 2) => `$${Number(n).toFixed(d)}`;
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—");
@@ -54,7 +55,7 @@ const H = ({ children }: { children: ReactNode }) => <h2 style={{ fontSize: 15, 
 
 export default function AdminPage() {
   const o = useApi<Overview>("/api/admin", { poll: 60_000 });
-  const [tab, setTab] = useState<"workspaces" | "users" | "failed" | "errors">("workspaces");
+  const [tab, setTab] = useState<"workspaces" | "users" | "failed" | "errors" | "interest">("workspaces");
   const [openErr, setOpenErr] = useState<number | null>(null);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -90,13 +91,14 @@ export default function AdminPage() {
             <Stat label="Model + search spend" value={usd(t.spend_today)} sub={`today · ${usd(t.spend_30d)} in 30 days`} />
             <Stat label="Broken connections" value={t.broken_connections} tone={t.broken_connections ? "bad" : undefined} sub={Object.entries(o.data!.by_provider).map(([p, n]) => `${p} ${n}`).join(" · ") || "none connected"} />
             <Stat label="Cards waiting" value={t.waiting} sub="across all workspaces" />
+            <Stat label="Trial interest" value={t.interest_new ?? 0} tone={t.interest_new ? "good" : undefined} sub="new, not contacted yet" />
             <Stat label="Server errors, 24 h" value={t.errors_24h ?? 0} tone={t.errors_24h ? "bad" : "good"} sub="details in the Errors tab" />
           </div>
           <div style={{ fontSize: 12.5, color: "var(--faint)", marginTop: 8 }}>By plan: {Object.entries(o.data!.by_plan).map(([p, n]) => `${p} ${n}`).join(" · ")}</div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", margin: "24px 0 12px", flexWrap: "wrap" }}>
             <div role="tablist" style={{ display: "flex", gap: 4, background: "var(--paper-2)", padding: 4, borderRadius: 10 }}>
-              {([["workspaces", `Workspaces (${o.data!.workspaces.length})`], ["users", `Users (${o.data!.users.length})`], ["failed", `Failed runs (${o.data!.failed_runs.length})`], ["errors", `Errors (${o.data!.errors.length})`]] as const).map(([k, label]) => (
+              {([["workspaces", `Workspaces (${o.data!.workspaces.length})`], ["users", `Users (${o.data!.users.length})`], ["failed", `Failed runs (${o.data!.failed_runs.length})`], ["errors", `Errors (${o.data!.errors.length})`], ["interest", `Trial interest (${o.data!.interest.length})`]] as const).map(([k, label]) => (
                 <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} style={{ border: 0, borderRadius: 7, padding: "7px 12px", font: "inherit", fontSize: 13.5, fontWeight: 600, cursor: "pointer", background: tab === k ? "var(--card)" : "transparent", color: tab === k ? "var(--ink)" : "var(--muted)", boxShadow: tab === k ? "0 1px 2px rgba(0,0,0,.08)" : "none" }}>{label}</button>
               ))}
             </div>
@@ -147,6 +149,22 @@ export default function AdminPage() {
                 </tr>
               ))}
             </Table>
+          )}
+
+          {tab === "interest" && (
+            o.data!.interest.length === 0 ? <div style={{ color: "var(--muted)", padding: "16px 4px" }}>Nobody yet. Links in outreach emails and the form at nightshiftai.ca/trial land here.</div> : (
+            <Table head={["When", "Business", "Contact", "Kind", "From", "Clicks"]}>
+              {o.data!.interest.map((i) => (
+                <tr key={i.id}>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{ago(i.created_at)}</td>
+                  <td style={td}><b>{i.business || "—"}</b>{i.city && <div style={{ fontSize: 12, color: "var(--faint)" }}>{i.city}</div>}</td>
+                  <td style={td}><a href={`mailto:${i.email}`} style={{ color: "var(--accent)" }}>{i.email}</a>{(i.contact_name || i.phone) && <div style={{ fontSize: 12, color: "var(--faint)" }}>{[i.contact_name, i.phone].filter(Boolean).join(" · ")}</div>}</td>
+                  <td style={td}>{i.niche ?? "—"}</td>
+                  <td style={td}>{i.source === "outreach" ? "email link" : "form"}</td>
+                  <td style={td}>{i.clicks}</td>
+                </tr>
+              ))}
+            </Table>)
           )}
 
           {tab === "errors" && (
