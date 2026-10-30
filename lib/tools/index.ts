@@ -77,7 +77,7 @@ const postToRoom = defineTool<{ text: string }>({
 const handOff = defineTool<{ bot: string; task: string; title?: string }>({
   name: "hand_off",
   description: "Give another bot on the team a job. It runs on its own shortly and reports back in the bot room.",
-  parameters: obj({ bot: str("The teammate's id, from the team list in your instructions"), task: str("What it should do, with every detail it needs"), title: str("A few words for the room, e.g. 'Acme #1042 dispute'") }, ["bot", "task"]),
+  parameters: obj({ bot: str("The teammate's id, from the team list in your instructions"), task: str("What it should do, in one or two plain sentences with the details it needs"), title: str("A few words for the room, e.g. 'Acme #1042 dispute'") }, ["bot", "task"]),
   risk: "quiet",
   async run(ctx, { bot, task, title }) {
     if (bot === ctx.bot.kind) return { error: "That's you." };

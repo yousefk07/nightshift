@@ -57,7 +57,7 @@ export async function postInRoom(store: Store, ws: Workspace, text: string, user
   const message = await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "owner", user_id: userId, content: text, mentions: named.map((b) => b.id) });
   const queued: Run[] = [];
   for (const bot of named) {
-    queued.push(await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger: "room", status: "queued", thread_id: room.id, input: `The owner wrote in the bot room: "${text}"` }));
+    queued.push(await store.createRun({ workspace_id: ws.id, bot_id: bot.id, trigger: "room", status: "queued", thread_id: room.id, input: `You were mentioned in the bot room. The owner wrote: "${text}"` }));
     await store.updateBot(bot.id, { status: "working", status_text: "Reading the room" });
   }
   return { message, queued };
@@ -199,6 +199,8 @@ export async function runNow(store: Store, ws: Workspace, kind: BotKind, task?: 
 async function reportInRoom(store: Store, ws: Workspace, bot: Bot, run: Run, result: RunResult) {
   if (!result.text) return;
   const room = await store.room(ws.id);
+  // it already said its piece in the room this run (a hand-off or a post): one message per bot, not two
+  if ((await store.messages(room.id, { limit: 20 })).some((m) => m.run_id === run.id && m.role === "bot")) return;
   const short = result.text.length > 4000 ? result.text.slice(0, 4000).replace(/\s+\S*$/, "") + "…" : result.text; // the room folds long reports
   await store.addMessage({ workspace_id: ws.id, thread_id: room.id, role: "bot", bot_id: bot.id, run_id: run.id, content: short, data: { run_id: run.id, status: result.status, action_ids: result.actions } });
 }
