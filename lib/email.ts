@@ -3,13 +3,13 @@ import { blocks, firstSentence, pieces } from "./markdown";
 // Outgoing mail from Nightshift itself (alerts, invites, the morning brief), through Resend.
 // The business's own customer emails go through their own mailbox (lib/connectors/mail.ts), never through here.
 
-export async function sendMail(m: { to: string | string[]; subject: string; html: string; text: string; replyTo?: string }) {
+export async function sendMail(m: { to: string | string[]; subject: string; html: string; text: string; replyTo?: string; from?: string }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY is not set");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.RESEND_FROM || "Nightshift <onboarding@resend.dev>", to: m.to, subject: m.subject, html: m.html, text: m.text, reply_to: m.replyTo }),
+    body: JSON.stringify({ from: m.from || process.env.RESEND_FROM || "Nightshift <onboarding@resend.dev>", to: m.to, subject: m.subject, html: m.html, text: m.text, reply_to: m.replyTo }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);

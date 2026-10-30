@@ -52,5 +52,6 @@ export async function sendApproval(p: { email: string; business: string | null; 
     button: { label: "Start my trial", url: `${app}/signin?new=1` },
     footer: "You asked for a Nightshift trial. If that wasn't you, ignore this email.",
   });
-  await sendMail({ to: p.email, subject: "Your Nightshift trial is ready", html, text, replyTo: "admin@nightshiftai.ca" });
+  // from the same address as the outreach email, so it lands in the same conversation and replies reach admin@
+  await sendMail({ to: p.email, subject: "Your Nightshift trial is ready", html, text, from: "Yousef at Nightshift <admin@nightshiftai.ca>", replyTo: "admin@nightshiftai.ca" });
 }
